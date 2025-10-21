@@ -1,0 +1,50 @@
+# This is a placeholder for the certificate template
+# Please replace this file with your actual certificate template image
+# The template should be a PNG image with space for:
+# 1. User name (first line)
+# 2. Course name (second line)
+# 
+# The controller will overlay text at specific positions:
+# - User name at position: top: 200, left: 100
+# - Course name at position: top: 250, left: 100
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

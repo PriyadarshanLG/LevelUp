@@ -1,9 +1,12 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import express, { Application, Request, Response } from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
-import dotenv from 'dotenv'
+import path from 'path'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+
+// Load environment variables first
+dotenv.config()
 
 // Import routes
 import authRoutes from './routes/auth'
@@ -12,12 +15,11 @@ import videoRoutes from './routes/videos'
 import chatbotRoutes from './routes/chatbot'
 import quizRoutes from './routes/quiz'
 import seedRoutes from './routes/seed'
-
-// Load environment variables
-dotenv.config()
+import certificateRoutes from './routes/certificate'
 
 const app: Application = express()
 const PORT = process.env.PORT || 5000
+let server: ReturnType<typeof app.listen> | null = null
 
 // Initialize Google Gemini AI (will be used in Phase 3)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -31,6 +33,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 
+// Serve static files
+app.use('/public', express.static(path.join(__dirname, '../public')))
+
 // Basic health check route
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
@@ -41,6 +46,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   })
 })
 
+
 // API Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/courses', courseRoutes)
@@ -48,6 +54,7 @@ app.use('/api/videos', videoRoutes)
 app.use('/api/chatbot', chatbotRoutes)
 app.use('/api/quizzes', quizRoutes)
 app.use('/api/seed', seedRoutes)
+app.use('/api/certificates', certificateRoutes)
 
 // MongoDB Connection
 const connectDB = async (): Promise<void> => {
@@ -92,7 +99,7 @@ const startServer = async (): Promise<void> => {
     await connectDB()
     
     // Start the server
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log('🚀 LearnHub Backend Server Started')
       console.log(`📍 Server: http://localhost:${PORT}`)
       console.log(`🔗 Health Check: http://localhost:${PORT}/api/health`)
@@ -105,18 +112,26 @@ const startServer = async (): Promise<void> => {
   }
 }
 
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received. Shutting down gracefully...')
-  await mongoose.connection.close()
-  process.exit(0)
-})
+// Graceful shutdown function
+const closeServer = async () => {
+  console.log('🛑 Shutting down server...')
+  if (server) {
+    server.close(async () => {
+      console.log('✅ HTTP server closed.')
+      await mongoose.connection.close()
+      console.log('✅ MongoDB connection closed.')
+      process.exit(0)
+    })
+  } else {
+    await mongoose.connection.close()
+    console.log('✅ MongoDB connection closed.')
+    process.exit(0)
+  }
+}
 
-process.on('SIGINT', async () => {
-  console.log('🛑 SIGINT received. Shutting down gracefully...')
-  await mongoose.connection.close()
-  process.exit(0)
-})
+// Handle graceful shutdown
+process.on('SIGTERM', closeServer)
+process.on('SIGINT', closeServer)
 
 // Start the application
 startServer()

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { authAPI, tokenUtils, APIError } from '../utils/api'
-import type { User } from '../utils/api'
+import { authAPI, tokenUtils, APIError, profileAPI } from '../utils/api'
+import type { User } from '../types/user'
 
 // Auth context interface
 interface AuthContextType {
@@ -16,6 +16,23 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
   clearError: () => void
+  deleteAccount: () => Promise<void>
+  updateProfile: (profileData: {
+    dateOfBirth?: Date;
+    gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+    phoneNumber?: string;
+    profession?: string;
+    organization?: string;
+    bio?: string;
+    location?: string;
+    socialLinks?: {
+      linkedin?: string;
+      twitter?: string;
+      github?: string;
+      website?: string;
+    };
+    interests?: string[];
+  }) => Promise<void>
 }
 
 // Create context
@@ -144,6 +161,70 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  // Update profile function
+  const updateProfile = async (profileData: {
+    dateOfBirth?: Date;
+    gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+    phoneNumber?: string;
+    profession?: string;
+    organization?: string;
+    bio?: string;
+    location?: string;
+    socialLinks?: {
+      linkedin?: string;
+      twitter?: string;
+      github?: string;
+      website?: string;
+    };
+    interests?: string[];
+  }): Promise<void> => {
+    try {
+      setError(null)
+      setIsLoading(true)
+
+      const response = await profileAPI.updateProfile(profileData)
+      
+      if (response.success && response.data) {
+        setUser(response.data.user)
+      }
+    } catch (error) {
+      if (error instanceof APIError) {
+        setError(error.message)
+      } else {
+        setError('Failed to update profile. Please try again.')
+      }
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Delete account function
+  const deleteAccount = async (): Promise<void> => {
+    try {
+      setError(null)
+      setIsLoading(true)
+
+      const response = await authAPI.deleteAccount()
+      
+      if (response.success) {
+        // Clear local state
+        tokenUtils.removeToken()
+        localStorage.removeItem('refreshToken')
+        setUser(null)
+      }
+    } catch (error) {
+      if (error instanceof APIError) {
+        setError(error.message)
+      } else {
+        setError('Failed to delete account. Please try again.')
+      }
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Context value
   const contextValue: AuthContextType = {
     user,
@@ -153,7 +234,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     register,
     logout,
-    clearError
+    clearError,
+    updateProfile,
+    deleteAccount
   }
 
   return (

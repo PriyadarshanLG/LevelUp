@@ -26,6 +26,10 @@ export interface ICourse extends Document {
   }
   requirements: string[]
   learningOutcomes: string[]
+  importantTopics: string[]
+  timeManagement: string[]
+  tipsAndTricks: string[]
+  weeklyAssignments: { week: number; title: string; description: string }[]
   createdAt: Date
   updatedAt: Date
 }
@@ -91,7 +95,8 @@ const CourseSchema: Schema<ICourse> = new Schema(
     duration: {
       type: Number,
       required: [true, 'Course duration is required'],
-      min: [1, 'Duration must be at least 1 minute']
+      min: [0, 'Duration must be at least 0 minutes'],
+      default: 0
     },
     price: {
       type: Number,
@@ -141,6 +146,23 @@ const CourseSchema: Schema<ICourse> = new Schema(
     learningOutcomes: [{
       type: String,
       trim: true
+    }],
+    importantTopics: [{
+      type: String,
+      trim: true
+    }],
+    timeManagement: [{
+      type: String,
+      trim: true
+    }],
+    tipsAndTricks: [{
+      type: String,
+      trim: true
+    }],
+    weeklyAssignments: [{
+      week: { type: Number, required: true },
+      title: { type: String, required: true, trim: true },
+      description: { type: String, required: true, trim: true }
     }]
   },
   {

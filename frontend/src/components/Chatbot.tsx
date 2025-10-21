@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MessageSquare, X, Send, Loader2, Bot, User } from 'lucide-react'
+import { MessageSquare, X, Send, Bot, User, Minimize2, Volume2, VolumeX } from 'lucide-react'
 import { chatbotAPI, APIError } from '../utils/api'
 import type { ChatMessage } from '../utils/api'
+import EmojiPicker from 'emoji-picker-react'
 
 interface ChatbotProps {
   courseContext?: {
@@ -9,18 +10,89 @@ interface ChatbotProps {
     courseTitle?: string
     currentTopic?: string
   }
+  showLauncher?: boolean
 }
 
-const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
+const Chatbot: React.FC<ChatbotProps> = ({ courseContext, showLauncher = false }) => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [, setError] = useState<string | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  
+  const MAX_MESSAGE_LENGTH = 500
+
+  // TTS function
+  const speak = (text: string) => {
+    if (!isSpeechEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel(); // Stop any previous speech
+    const utterance = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const cancelSpeech = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  // Minimal markdown renderer: supports **bold** and bullet lists starting with '*' or '-'
+  const renderInlineBold = (text: string): React.ReactNode[] => {
+    const result: React.ReactNode[] = []
+    const regex = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        result.push(text.slice(lastIndex, match.index))
+      }
+      result.push(<strong key={result.length}>{match[1]}</strong>)
+      lastIndex = regex.lastIndex
+    }
+    if (lastIndex < text.length) {
+      result.push(text.slice(lastIndex))
+    }
+    return result
+  }
+
+  const renderMessageContent = (content: string): React.JSX.Element => {
+    const lines = content.split(/\r?\n/)
+    const elements: React.ReactNode[] = []
+    let i = 0
+    while (i < lines.length) {
+      const line = lines[i]
+      if (/^\s*[\*-]\s+/.test(line)) {
+        const items: React.ReactNode[] = []
+        while (i < lines.length && /^\s*[\*-]\s+/.test(lines[i])) {
+          const itemText = lines[i].replace(/^\s*[\*-]\s+/, '')
+          items.push(<li key={`li-${i}`}>{renderInlineBold(itemText)}</li>)
+          i++
+        }
+        elements.push(
+          <ul key={`ul-${i}`} className="list-disc pl-5 space-y-1 text-sm">
+            {items}
+          </ul>
+        )
+        continue
+      }
+      if (line.trim().length > 0) {
+        elements.push(
+          <p key={`p-${i}`} className="text-sm leading-relaxed">
+            {renderInlineBold(line)}
+          </p>
+        )
+      }
+      i++
+    }
+    return <>{elements}</>
+  }
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -37,6 +109,25 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
       inputRef.current.focus()
     }
   }, [isOpen])
+
+  // Listen for global open event from GlobalAINovaButton
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true)
+      setIsMinimized(false)
+    }
+    window.addEventListener('open-ainova', handler)
+    return () => window.removeEventListener('open-ainova', handler)
+  }, [])
+
+  // Notify others when chat opens/closes
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
+      window.dispatchEvent(new Event('ainova-open'))
+    } else {
+      window.dispatchEvent(new Event('ainova-close'))
+    }
+  }, [isOpen, isMinimized])
 
   // Load suggestions when component mounts
   useEffect(() => {
@@ -62,16 +153,33 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
       const welcomeMessage: ChatMessage = {
         role: 'assistant',
         content: courseContext?.courseTitle 
-          ? `Hello! I'm your LearnHub AI assistant. I'm here to help you with "${courseContext.courseTitle}". What would you like to know?`
-          : "Hello! I'm your LearnHub AI assistant. I'm here to help you with your learning journey. What can I assist you with today?",
+          ? `Hello! I'm AI Nova, your LevelUp AI assistant. I'm here to help you with "${courseContext.courseTitle}". What would you like to know?`
+          : "Hello! I'm AI Nova, your LevelUp AI assistant. I'm here to help you with your learning journey. What can I assist you with today?",
         timestamp: new Date().toISOString()
       }
       setMessages([welcomeMessage])
+      speak(welcomeMessage.content);
     }
   }, [isOpen, messages.length, courseContext?.courseTitle])
 
+  // Speak the latest message if it's from the assistant
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.role === 'assistant') {
+      speak(lastMessage.content);
+    }
+  }, [messages]);
+
+  // Cleanup speech on close
+  useEffect(() => {
+    return () => {
+      cancelSpeech();
+    };
+  }, []);
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return
+    cancelSpeech();
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -135,41 +243,57 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
   }
 
   const clearChat = () => {
+    cancelSpeech();
     setMessages([])
     setError(null)
     // Re-add welcome message
     const welcomeMessage: ChatMessage = {
       role: 'assistant',
       content: courseContext?.courseTitle 
-        ? `Hello! I'm your LearnHub AI assistant. I'm here to help you with "${courseContext.courseTitle}". What would you like to know?`
-        : "Hello! I'm your LearnHub AI assistant. I'm here to help you with your learning journey. What can I assist you with today?",
+        ? `Hello! I'm AI Nova, your LevelUp AI assistant. I'm here to help you with "${courseContext.courseTitle}". What would you like to know?`
+        : "Hello! I'm AI Nova, your LevelUp AI assistant. I'm here to help you with your learning journey. What can I assist you with today?",
       timestamp: new Date().toISOString()
     }
     setMessages([welcomeMessage])
+    speak(welcomeMessage.content)
   }
 
   return (
     <>
-      {/* Floating Chat Button */}
-      {!isOpen && (
+      {/* Floating Chat Button or Minimized Chat */}
+      {showLauncher && (!isOpen || isMinimized) && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-zara-black text-zara-white rounded-full shadow-lg hover:bg-zara-charcoal transition-all duration-200 flex items-center justify-center z-50"
+          onClick={() => {
+            setIsOpen(true)
+            setIsMinimized(false)
+          }}
+          className={`fixed bottom-6 right-6 ${
+            isMinimized 
+              ? 'w-auto px-4 rounded-full'
+              : 'w-14 h-14 rounded-full'
+          } bg-gradient-to-br from-indigo-600 via-fuchsia-600 to-pink-600 text-white shadow-lg hover:shadow-[0_12px_35px_rgba(168,85,247,0.45)] transition-all duration-300 flex items-center justify-center z-50 space-x-2`}
           aria-label="Open AI Assistant"
         >
           <MessageSquare size={24} />
+          {isMinimized && (
+            <span className="text-sm font-medium">Restore AI Nova</span>
+          )}
         </button>
       )}
 
       {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-6 right-6 w-80 h-96 bg-zara-white border border-zara-lightsilver rounded-lg shadow-xl flex flex-col z-50">
+      {isOpen && !isMinimized && (
+        <div className="fixed bottom-6 right-6 w-80 sm:w-96 h-96 sm:h-[32rem] bg-white/95 dark:bg-gray-900/95 border border-zara-lightsilver rounded-2xl shadow-2xl flex flex-col z-50 backdrop-blur-sm overflow-hidden">
+          {/* Glow border */}
+          <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-r from-indigo-500/30 via-fuchsia-500/30 to-pink-500/30 opacity-60"></div>
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-zara-lightsilver">
-            <div className="flex items-center space-x-2">
-              <Bot size={20} className="text-zara-charcoal" />
+          <div className="relative flex items-center justify-between p-4 border-b border-zara-lightsilver bg-gradient-to-r from-indigo-50 via-fuchsia-50 to-pink-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-pink-500 text-white flex items-center justify-center shadow-sm">
+                <Bot size={16} />
+              </div>
               <div>
-                <h3 className="font-light text-zara-black text-sm">AI Assistant</h3>
+                <h3 className="font-semibold text-zara-black text-sm">AI Nova</h3>
                 {courseContext?.courseTitle && (
                   <p className="text-xs text-zara-gray font-light">
                     {courseContext.courseTitle}
@@ -179,15 +303,32 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
             </div>
             <div className="flex items-center space-x-2">
               <button
+                onClick={() => setIsSpeechEnabled(!isSpeechEnabled)}
+                className="p-2 rounded-lg text-zara-gray hover:text-zara-charcoal hover:bg-white/70 transition-all duration-200"
+                title={isSpeechEnabled ? "Disable speech" : "Enable speech"}
+              >
+                {isSpeechEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              </button>
+              <button
                 onClick={clearChat}
-                className="text-zara-gray hover:text-zara-charcoal transition-colors duration-200"
+                className="p-2 rounded-lg text-zara-gray hover:text-zara-charcoal hover:bg-white/70 transition-all duration-200"
                 title="Clear chat"
               >
                 <X size={16} />
               </button>
               <button
-                onClick={() => setIsOpen(false)}
-                className="text-zara-gray hover:text-zara-charcoal transition-colors duration-200"
+                onClick={() => setIsMinimized(true)}
+                className="p-2 rounded-lg text-zara-gray hover:text-zara-charcoal hover:bg-white/70 transition-all duration-200"
+                title="Minimize chat"
+              >
+                <Minimize2 size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  cancelSpeech();
+                }}
+                className="p-2 rounded-lg text-zara-gray hover:text-zara-charcoal hover:bg-white/70 transition-all duration-200"
                 title="Close chat"
               >
                 <X size={18} />
@@ -196,28 +337,33 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-white/40 to-transparent dark:from-gray-900/40">
             {messages.map((message, index) => (
               <div
                 key={index}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-xs px-3 py-2 rounded-lg text-sm font-light ${
+                  className={`max-w-xs px-3 py-2 rounded-xl text-sm font-light transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow ${
                     message.role === 'user'
-                      ? 'bg-zara-charcoal text-zara-white'
-                      : 'bg-zara-offwhite text-zara-charcoal border border-zara-lightsilver'
+                      ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-indigo-500/20'
+                      : 'bg-white/90 text-zara-charcoal border border-zara-lightsilver hover:bg-white'
                   }`}
                 >
-                  <div className="flex items-start space-x-2">
-                    {message.role === 'assistant' && (
-                      <Bot size={16} className="mt-1 flex-shrink-0 text-zara-gray" />
-                    )}
-                    {message.role === 'user' && (
-                      <User size={16} className="mt-1 flex-shrink-0 text-zara-white" />
-                    )}
-                    <div className="whitespace-pre-wrap break-words">
-                      {message.content}
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-start space-x-2">
+                      {message.role === 'assistant' && (
+                        <Bot size={16} className="mt-1 flex-shrink-0 text-zara-gray" />
+                      )}
+                      {message.role === 'user' && (
+                        <User size={16} className="mt-1 flex-shrink-0 text-white" />
+                      )}
+                      <div className="whitespace-pre-wrap break-words">
+                        {renderMessageContent(message.content)}
+                      </div>
+                    </div>
+                    <div className="text-xs text-zara-gray font-light ml-6">
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>
@@ -227,10 +373,14 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
             {/* Loading indicator */}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-zara-offwhite border border-zara-lightsilver px-3 py-2 rounded-lg">
+                <div className="bg-white/90 border border-zara-lightsilver px-3 py-2 rounded-xl">
                   <div className="flex items-center space-x-2">
                     <Bot size={16} className="text-zara-gray" />
-                    <Loader2 size={16} className="animate-spin text-zara-gray" />
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-zara-gray animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-zara-gray animate-bounce" style={{ animationDelay: '120ms' }}></span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-zara-gray animate-bounce" style={{ animationDelay: '240ms' }}></span>
+                    </span>
                     <span className="text-sm font-light text-zara-gray">Thinking...</span>
                   </div>
                 </div>
@@ -245,7 +395,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
                   <button
                     key={index}
                     onClick={() => handleSuggestionClick(suggestion)}
-                    className="block w-full text-left text-xs text-zara-charcoal bg-zara-offwhite hover:bg-zara-lightsilver border border-zara-lightsilver rounded px-2 py-1 transition-colors duration-200 font-light"
+                    className="block w-full text-left text-xs text-zara-charcoal bg-white/90 hover:bg-white border border-zara-lightsilver rounded-lg px-3 py-2 transition-all duration-200 font-medium hover:shadow hover:-translate-y-0.5"
                   >
                     {suggestion}
                   </button>
@@ -257,25 +407,60 @@ const Chatbot: React.FC<ChatbotProps> = ({ courseContext }) => {
           </div>
 
           {/* Input */}
-          <div className="p-4 border-t border-zara-lightsilver">
-            <div className="flex space-x-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask me anything..."
-                className="flex-1 px-3 py-2 text-sm font-light border border-zara-lightsilver rounded focus:outline-none focus:border-zara-black transition-colors duration-200 bg-zara-white text-zara-charcoal placeholder-zara-lightgray"
-                disabled={isLoading}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || isLoading}
-                className="px-3 py-2 bg-zara-black text-zara-white rounded hover:bg-zara-charcoal transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send size={16} />
-              </button>
+          <div className="p-4 border-t border-zara-lightsilver bg-white/70 dark:bg-gray-900/70">
+            <div className="relative">
+              <div className="flex space-x-2">
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => {
+                      if (e.target.value.length <= MAX_MESSAGE_LENGTH) {
+                        setInputMessage(e.target.value)
+                      }
+                    }}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me anything..."
+                    className="w-full px-3 py-2 text-sm font-light border border-zara-lightsilver rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-colors duration-200 bg-white text-zara-charcoal placeholder-zara-lightgray pr-16 shadow-sm"
+                    disabled={isLoading}
+                  />
+                  <div className="absolute right-2 top-2 flex items-center space-x-2">
+                    <button
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="text-zara-gray hover:text-zara-charcoal transition-colors duration-200"
+                      type="button"
+                    >
+                      😊
+                    </button>
+                    <span className="text-xs text-zara-gray">
+                      {inputMessage.length}/{MAX_MESSAGE_LENGTH}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputMessage.trim() || isLoading}
+                  className="px-4 py-2 rounded-xl text-white bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-pink-600 hover:from-indigo-700 hover:via-fuchsia-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1 shadow hover:shadow-[0_10px_24px_rgba(168,85,247,0.35)]"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+              
+              {showEmojiPicker && (
+                <div className="absolute bottom-full right-0 mb-2">
+                  <EmojiPicker
+                    onEmojiClick={(emojiObject) => {
+                      if (inputMessage.length < MAX_MESSAGE_LENGTH) {
+                        setInputMessage(prev => prev + emojiObject.emoji)
+                      }
+                      setShowEmojiPicker(false)
+                    }}
+                    width={280}
+                    height={400}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

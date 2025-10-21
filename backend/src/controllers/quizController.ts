@@ -162,6 +162,7 @@ export const getQuiz = async (req: Request, res: Response): Promise<void> => {
       data: {
         quiz: {
           _id: quiz._id,
+          courseId: quiz.courseId,
           title: quiz.title,
           description: quiz.description,
           instructions: quiz.instructions,

@@ -3,9 +3,12 @@ import {
   getCourses,
   getCourse,
   enrollCourse,
+  unenrollCourse,
   getUserEnrollments,
   getCategories,
-  createCourse
+  createCourse,
+  submitFeedback,
+  getCourseFeedback
 } from '../controllers/courseController'
 import { authenticate, authorize, optionalAuth } from '../middleware/auth'
 
@@ -15,9 +18,12 @@ const router = Router()
 router.get('/', getCourses) // Get all published courses with filters
 router.get('/categories', getCategories) // Get course categories
 router.get('/:courseId', optionalAuth, getCourse) // Get single course (auth optional for enrollment check)
+router.get('/:courseId/feedback', getCourseFeedback)
 
 // Protected routes (authentication required)
 router.post('/:courseId/enroll', authenticate, enrollCourse) // Enroll in course
+router.delete('/:courseId/enroll', authenticate, unenrollCourse) // Unenroll from course
+router.post('/:courseId/feedback', authenticate, submitFeedback)
 router.get('/user/enrollments', authenticate, getUserEnrollments) // Get user's enrollments
 
 // Admin/Instructor routes (special permissions required)

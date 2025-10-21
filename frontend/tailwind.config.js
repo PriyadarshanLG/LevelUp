@@ -4,6 +4,7 @@ module.exports = {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -21,9 +22,11 @@ module.exports = {
         }
       },
       fontFamily: {
-        // Zara-style typography
+        // Modern typography
         'serif': ['Georgia', 'Times New Roman', 'serif'],
-        'sans': ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif']
+        'sans': ['Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        'display': ['Poppins', 'Inter', 'sans-serif'],
+        'righteous': ['Righteous', 'Inter', 'sans-serif']
       },
       letterSpacing: {
         'zara': '0.025em'
@@ -31,8 +34,48 @@ module.exports = {
       spacing: {
         '18': '4.5rem',
         '22': '5.5rem'
+      },
+      keyframes: {
+        blob: {
+          '0%': {
+            transform: 'translate(0px, 0px) scale(1)'
+          },
+          '33%': {
+            transform: 'translate(30px, -50px) scale(1.1)'
+          },
+          '66%': {
+            transform: 'translate(-20px, 20px) scale(0.9)'
+          },
+          '100%': {
+            transform: 'translate(0px, 0px) scale(1)'
+          }
+        },
+        gradient: {
+          '0%': {
+            backgroundPosition: '0% 50%'
+          },
+          '50%': {
+            backgroundPosition: '100% 50%'
+          },
+          '100%': {
+            backgroundPosition: '0% 50%'
+          }
+        }
+      },
+      animation: {
+        blob: 'blob 7s infinite',
+        gradient: 'gradient 15s ease infinite'
+      },
+      backgroundSize: {
+        '200%': '200%'
+      },
+      transitionDelay: {
+        '2000': '2000ms',
+        '4000': '4000ms'
       }
     },
   },
-  plugins: [],
+  plugins: [
+    require('tailwind-scrollbar')({ nocompatible: true }),
+  ],
 }

@@ -160,109 +160,19 @@ const QuizList: React.FC<QuizListProps> = ({ courseId }) => {
 
       <div className="space-y-4">
         {quizzes.map((quiz, index) => (
-          <div key={quiz._id} className="bg-zara-charcoal border border-zara-gray rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-200">
-            {/* Quiz Header */}
-            <div className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start">
-                  <div className="mr-4 mt-1">
-                    {getQuizStatusIcon(quiz)}
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-lg font-normal text-zara-white mb-2">
-                      Quiz {index + 1}: {quiz.title}
-                    </h4>
-                    <p className="text-sm font-light text-zara-lightgray mb-4 leading-relaxed">
-                      {quiz.description}
-                    </p>
-                  </div>
-                </div>
-                <div className="ml-6">
-                  {getActionButton(quiz)}
-                </div>
+          <div key={quiz._id} className="bg-zara-charcoal border border-zara-gray rounded-lg p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h4 className="text-lg font-normal text-zara-white mb-2">
+                  Quiz {index + 1}: {quiz.title}
+                </h4>
+                <p className="text-sm font-light text-zara-lightgray leading-relaxed">
+                  {quiz.description}
+                </p>
               </div>
-
-              {/* Quiz Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                  <div className="text-sm font-light text-zara-lightgray mb-1">Questions</div>
-                  <div className="text-lg font-light text-zara-white">{quiz.totalQuestions}</div>
-                </div>
-                <div>
-                  <div className="text-sm font-light text-zara-lightgray mb-1">Time Limit</div>
-                  <div className="text-lg font-light text-zara-white">{formatTime(quiz.timeLimit)}</div>
-                </div>
-                <div>
-                  <div className="text-sm font-light text-zara-lightgray mb-1">Passing Score</div>
-                  <div className="text-lg font-light text-zara-white">{quiz.passingScore}%</div>
-                </div>
-                <div>
-                  <div className="text-sm font-light text-zara-lightgray mb-1">Max Attempts</div>
-                  <div className="text-lg font-light text-zara-white">
-                    {quiz.maxAttempts === 0 ? 'Unlimited' : quiz.maxAttempts}
-                  </div>
-                </div>
+              <div className="ml-6">
+                {getActionButton(quiz)}
               </div>
-
-              {/* User Progress */}
-              {quiz.userStats && (
-                <div className="border-t border-zara-gray pt-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <span className="text-sm font-light text-zara-lightgray mr-2">Status:</span>
-                      <span className={`text-sm font-light ${getQuizStatusColor(quiz)}`}>
-                        {getQuizStatusText(quiz)}
-                      </span>
-                    </div>
-                    
-                    {quiz.userStats.attempts > 0 && (
-                      <Link
-                        to={`/quiz/${quiz._id}/results`}
-                        className="text-sm font-light text-zara-white hover:text-zara-lightgray transition-colors duration-200"
-                      >
-                        View Results →
-                      </Link>
-                    )}
-                  </div>
-
-                  {quiz.userStats.passed && (
-                    <div className="mt-2 flex items-center text-green-500">
-                      <CheckCircle2 size={16} className="mr-2" />
-                      <span className="text-sm font-light">
-                        Congratulations! You passed this quiz.
-                      </span>
-                    </div>
-                  )}
-
-                  {quiz.userStats.attempts > 0 && !quiz.userStats.passed && quiz.userStats.canAttempt && (
-                    <div className="mt-2 flex items-center text-yellow-500">
-                      <AlertCircle size={16} className="mr-2" />
-                      <span className="text-sm font-light">
-                        You can retake this quiz to improve your score.
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Instructions Preview */}
-              {quiz.instructions.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-zara-gray">
-                  <div className="text-sm font-light text-zara-lightgray mb-2">Instructions:</div>
-                  <ul className="list-disc list-inside space-y-1">
-                    {quiz.instructions.slice(0, 2).map((instruction, index) => (
-                      <li key={index} className="text-sm font-light text-zara-lightgray">
-                        {instruction}
-                      </li>
-                    ))}
-                    {quiz.instructions.length > 2 && (
-                      <li className="text-sm font-light text-zara-lightgray italic">
-                        ... and {quiz.instructions.length - 2} more instructions
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              )}
             </div>
           </div>
         ))}

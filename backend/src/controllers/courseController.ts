@@ -3,6 +3,7 @@ import Course, { ICourse } from '../models/Course'
 import Video from '../models/Video'
 import Quiz from '../models/Quiz'
 import Enrollment from '../models/Enrollment'
+import Feedback from '../models/Feedback'
 
 // Get all published courses (public)
 export const getCourses = async (req: Request, res: Response): Promise<void> => {
@@ -74,6 +75,72 @@ export const getCourses = async (req: Request, res: Response): Promise<void> => 
       message: 'Failed to retrieve courses',
       errors: ['Internal server error']
     })
+  }
+}
+
+// Submit feedback for a course (protected)
+export const submitFeedback = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId } = req.params
+    const userId = req.userId!
+    const { rating, comment } = req.body
+
+    // Ensure enrolled before feedback
+    const enrollment = await Enrollment.findOne({ userId, courseId })
+    if (!enrollment) {
+      res.status(403).json({ success: false, message: 'Enroll in the course to leave feedback' })
+      return
+    }
+
+    // Upsert feedback (one per user per course) with creation detection
+    let created = false
+    let feedback = await Feedback.findOne({ userId, courseId })
+    if (feedback) {
+      feedback.rating = rating
+      feedback.comment = comment
+      await feedback.save()
+    } else {
+      feedback = new Feedback({ userId, courseId, rating, comment })
+      await feedback.save()
+      created = true
+    }
+
+    // Update course rating using new rating when created; when updated, recompute average quickly
+    if (created) {
+      const course = await Course.findById(courseId)
+      if (course) {
+        const total = course.rating.average * course.rating.count + rating
+        course.rating.count += 1
+        course.rating.average = total / course.rating.count
+        await course.save()
+      }
+    } else {
+      // recompute average from all feedbacks
+      const agg = await Feedback.aggregate([
+        { $match: { courseId } },
+        { $group: { _id: '$courseId', avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+      ])
+      if (agg[0]) {
+        await Course.updateOne({ _id: courseId }, { $set: { 'rating.average': agg[0].avg, 'rating.count': agg[0].count } })
+      }
+    }
+
+    res.status(200).json({ success: true, message: 'Feedback submitted', data: { feedback } })
+  } catch (error: any) {
+    console.error('Submit feedback error:', error)
+    res.status(500).json({ success: false, message: 'Failed to submit feedback' })
+  }
+}
+
+// Get feedback list for a course (public)
+export const getCourseFeedback = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId } = req.params
+    const feedback = await Feedback.find({ courseId }).sort({ createdAt: -1 }).limit(50).select('-__v')
+    res.status(200).json({ success: true, message: 'Feedback retrieved', data: { feedback } })
+  } catch (error: any) {
+    console.error('Get feedback error:', error)
+    res.status(500).json({ success: false, message: 'Failed to load feedback' })
   }
 }
 
@@ -220,6 +287,48 @@ export const enrollCourse = async (req: Request, res: Response): Promise<void> =
   }
 }
 
+// Unenroll from course (protected)
+export const unenrollCourse = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId } = req.params
+    const userId = req.userId!
+
+    // Find enrollment
+    const enrollment = await Enrollment.findOne({ userId, courseId })
+
+    if (!enrollment) {
+      res.status(404).json({
+        success: false,
+        message: 'Enrollment not found'
+      })
+      return
+    }
+
+    // Remove enrollment
+    await Enrollment.deleteOne({ _id: enrollment._id })
+
+    // Decrement course enrollment count (safely)
+    const course = await Course.findOne({ _id: courseId })
+    if (course) {
+      course.enrollmentCount = Math.max(0, (course.enrollmentCount || 0) - 1)
+      await course.save()
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Successfully unenrolled from course'
+    })
+
+  } catch (error: any) {
+    console.error('Unenroll course error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unenroll from course',
+      errors: ['Internal server error']
+    })
+  }
+}
+
 // Get user's enrollments (protected)
 export const getUserEnrollments = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -335,7 +444,8 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
       previewVideo,
       tags,
       requirements,
-      learningOutcomes
+      learningOutcomes,
+      isPublished: true // Publish by default
     })
 
     await course.save()

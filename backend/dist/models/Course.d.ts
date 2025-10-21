@@ -24,6 +24,14 @@ export interface ICourse extends Document {
     };
     requirements: string[];
     learningOutcomes: string[];
+    importantTopics: string[];
+    timeManagement: string[];
+    tipsAndTricks: string[];
+    weeklyAssignments: {
+        week: number;
+        title: string;
+        description: string;
+    }[];
     createdAt: Date;
     updatedAt: Date;
 }

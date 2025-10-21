@@ -1,5 +1,7 @@
 import { Request, Response } from 'express'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import Course from '../models/Course'
+import Video from '../models/Video'
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
@@ -272,6 +274,152 @@ export const testAIService = async (req: Request, res: Response): Promise<void> 
         error: error.message
       }
     })
+  }
+}
+
+// Generate AI-powered quiz based on topic and platform content (protected)
+export const generateAIQuiz = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { topic, difficulty = 'easy', numQuestions = 10 } = req.body || {}
+
+    // Basic validation
+    if (!topic || typeof topic !== 'string' || topic.trim().length < 3) {
+      res.status(400).json({
+        success: false,
+        message: 'Please provide a topic (min 3 characters)'
+      })
+      return
+    }
+
+    const allowed = ['easy', 'intermediate', 'advanced']
+    if (!allowed.includes(String(difficulty))) {
+      res.status(400).json({ success: false, message: 'Invalid difficulty' })
+      return
+    }
+
+    // If AI is not configured, respond with a graceful message
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your-gemini-api-key-here') {
+      res.status(503).json({
+        success: false,
+        message: 'AI service not configured',
+        errors: ['Set GEMINI_API_KEY to enable AI Quiz generation']
+      })
+      return
+    }
+
+    // Gather context from courses and videos matching the topic
+    const safeTopic = topic.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(safeTopic, 'i')
+
+    const courses = await Course.find({
+      $or: [
+        { title: regex },
+        { description: regex },
+        { shortDescription: regex },
+        { tags: regex },
+        { importantTopics: regex },
+        { learningOutcomes: regex }
+      ],
+      isPublished: true
+    })
+      .select('title description shortDescription learningOutcomes importantTopics category level')
+      .limit(8)
+
+    const courseIds = courses.map((c: any) => c._id)
+
+    const videos = await Video.find({
+      $or: [
+        { title: regex },
+        { description: regex },
+        { transcription: regex },
+        { courseId: { $in: courseIds } }
+      ],
+      isPublished: true
+    })
+      .select('title description transcription courseId')
+      .limit(20)
+
+    // Build a concise knowledge pack for the model
+    const knowledge: string[] = []
+    courses.forEach((c: any) => {
+      knowledge.push(`Course: ${c.title} [${c.category} - ${c.level}]`)
+      if (c.shortDescription) knowledge.push(`Summary: ${c.shortDescription}`)
+      if (Array.isArray(c.learningOutcomes) && c.learningOutcomes.length) {
+        knowledge.push(`Learning outcomes: ${c.learningOutcomes.slice(0, 8).join('; ')}`)
+      }
+      if (Array.isArray(c.importantTopics) && c.importantTopics.length) {
+        knowledge.push(`Important topics: ${c.importantTopics.slice(0, 12).join('; ')}`)
+      }
+    })
+
+    videos.slice(0, 20).forEach((v: any) => {
+      knowledge.push(`Lesson: ${v.title}`)
+      if (v.description) knowledge.push(`Lesson summary: ${v.description}`)
+      if (v.transcription) {
+        // Keep only the first ~500 chars to avoid long prompts
+        const snippet = String(v.transcription).replace(/\s+/g, ' ').slice(0, 500)
+        if (snippet.length > 60) knowledge.push(`Transcript snippet: ${snippet}...`)
+      }
+    })
+
+    const knowledgeBlock = knowledge.join('\n') || `No existing lessons found. Create a foundational quiz for topic: ${topic}.`
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+
+    const QUIZ_SCHEMA = `Return strictly in compact JSON with the following shape (no markdown, no extra text):\n{\n  "topic": string,\n  "difficulty": "easy"|"intermediate"|"advanced",\n  "questions": [\n    {\n      "id": string,\n      "question": string,\n      "options": string[4],\n      "correctOptionIndex": 0|1|2|3,\n      "explanation": string\n    }\n  ]\n}`
+
+    const DIFFICULTY_GUIDE = `Difficulty guidance:\n- easy: definitions, simple applications, identify main idea.\n- intermediate: compare/contrast, workflows, trade-offs, why/when to use.\n- advanced: edge cases, complexity, optimization, scalability, security.\nEnsure questions cover multiple sub-concepts from the provided lessons, not just the topic keyword.`
+
+    const prompt = `You are an expert quiz generator for an e-learning platform. Analyze the following platform content related to the user's topic and generate a ${numQuestions}-question multiple-choice quiz.\n\nUSER TOPIC: "${topic}"\nREQUESTED DIFFICULTY: ${difficulty}\n\nPLATFORM KNOWLEDGE:\n${knowledgeBlock}\n\n${DIFFICULTY_GUIDE}\n\nRules:\n- Cover diverse sub-topics and lessons inferred from the knowledge.\n- Avoid trivial rephrases of the topic name.\n- Make distractors plausible but incorrect.\n- Exactly 4 options per question.\n- Provide a brief explanation for each answer.\n\n${QUIZ_SCHEMA}\nOutput only the JSON.`
+
+    const gen = await model.generateContent(prompt)
+    const text = gen.response.text().trim()
+
+    // Try parse JSON
+    let parsed: any
+    try {
+      parsed = JSON.parse(text)
+    } catch (e) {
+      // try to extract JSON block if wrapped
+      const match = text.match(/\{[\s\S]*\}$/)
+      if (match) {
+        parsed = JSON.parse(match[0])
+      } else {
+        throw new Error('AI returned non-JSON content')
+      }
+    }
+
+    if (!parsed?.questions || !Array.isArray(parsed.questions)) {
+      throw new Error('Malformed AI quiz response')
+    }
+
+    // Normalize for frontend
+    const questions = parsed.questions.slice(0, numQuestions).map((q: any, idx: number) => {
+      const opts: string[] = Array.isArray(q.options) ? q.options.slice(0, 4) : []
+      const correctIdx = Math.min(Math.max(Number(q.correctOptionIndex) || 0, 0), Math.max(opts.length - 1, 0))
+      const optionObjs = opts.map((t: string, i: number) => ({ id: `${idx}-${i}`, text: String(t) }))
+      return {
+        id: String(q.id || `q-${idx + 1}`),
+        question: String(q.question || ''),
+        options: optionObjs,
+        correctOptionId: optionObjs[correctIdx]?.id || '0-0',
+        explanation: String(q.explanation || '')
+      }
+    })
+
+    res.status(200).json({
+      success: true,
+      message: 'AI quiz generated successfully',
+      data: {
+        topic: String(parsed.topic || topic),
+        difficulty: String(parsed.difficulty || difficulty),
+        questions
+      }
+    })
+  } catch (error: any) {
+    console.error('generateAIQuiz error:', error)
+    const message = error?.message || 'Failed to generate AI quiz'
+    res.status(500).json({ success: false, message, errors: ['Internal server error'] })
   }
 }
 

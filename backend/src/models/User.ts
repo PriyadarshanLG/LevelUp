@@ -10,6 +10,32 @@ export interface IUser extends Document {
   avatar?: string
   role: 'student' | 'instructor' | 'admin'
   isEmailVerified: boolean
+  // Profile fields
+  dateOfBirth?: Date
+  gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say'
+  phoneNumber?: string
+  country?: string
+  hobbies?: string[]
+  institution?: string
+  position?: 'Student' | 'Faculty' | 'Intern' | 'Employee' | 'Freelancer'
+  department?: string
+  yearOfStudy?: string
+  experienceLevel?: string
+  fieldOfInterest?: string[]
+  preferredLearningMode?: 'Video' | 'Text' | 'Interactive'
+  preferredLanguage?: string
+  careerGoal?: string
+  profession?: string
+  organization?: string
+  bio?: string
+  location?: string
+  socialLinks?: {
+    linkedin?: string
+    twitter?: string
+    github?: string
+    website?: string
+  }
+  interests?: string[]
   createdAt: Date
   updatedAt: Date
   // Methods
@@ -54,7 +80,100 @@ const UserSchema: Schema<IUser> = new Schema(
     isEmailVerified: {
       type: Boolean,
       default: false
-    }
+    },
+    // Profile fields
+    dateOfBirth: {
+      type: Date
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', 'prefer-not-to-say']
+    },
+    phoneNumber: {
+      type: String,
+      match: [/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, 'Please provide a valid phone number']
+    },
+    country: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Country cannot be more than 100 characters']
+    },
+    hobbies: [{
+      type: String,
+      trim: true
+    }],
+    institution: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Institution name cannot be more than 100 characters']
+    },
+    position: {
+      type: String,
+      enum: ['Student', 'Faculty', 'Intern', 'Employee', 'Freelancer']
+    },
+    department: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Department cannot be more than 100 characters']
+    },
+    yearOfStudy: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Year of study cannot be more than 50 characters']
+    },
+    experienceLevel: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Experience level cannot be more than 100 characters']
+    },
+    fieldOfInterest: [{
+      type: String,
+      trim: true
+    }],
+    preferredLearningMode: {
+      type: String,
+      enum: ['Video', 'Text', 'Interactive']
+    },
+    preferredLanguage: {
+      type: String,
+      trim: true,
+      maxlength: [50, 'Preferred language cannot be more than 50 characters']
+    },
+    careerGoal: {
+      type: String,
+      trim: true,
+      maxlength: [200, 'Career goal cannot be more than 200 characters']
+    },
+    profession: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Profession cannot be more than 100 characters']
+    },
+    organization: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Organization name cannot be more than 100 characters']
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Bio cannot be more than 500 characters']
+    },
+    location: {
+      type: String,
+      trim: true,
+      maxlength: [100, 'Location cannot be more than 100 characters']
+    },
+    socialLinks: {
+      linkedin: String,
+      twitter: String,
+      github: String,
+      website: String
+    },
+    interests: [{
+      type: String,
+      trim: true
+    }]
   },
   {
     timestamps: true

@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createCourse = exports.getCategories = exports.getUserEnrollments = exports.enrollCourse = exports.getCourse = exports.getCourses = void 0;
+exports.createCourse = exports.getCategories = exports.getUserEnrollments = exports.unenrollCourse = exports.enrollCourse = exports.getCourse = exports.getCourseFeedback = exports.submitFeedback = exports.getCourses = void 0;
 const Course_1 = __importDefault(require("../models/Course"));
 const Video_1 = __importDefault(require("../models/Video"));
 const Quiz_1 = __importDefault(require("../models/Quiz"));
 const Enrollment_1 = __importDefault(require("../models/Enrollment"));
+const Feedback_1 = __importDefault(require("../models/Feedback"));
 const getCourses = async (req, res) => {
     try {
         const { category, level, search, page = 1, limit = 12, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
@@ -61,6 +62,66 @@ const getCourses = async (req, res) => {
     }
 };
 exports.getCourses = getCourses;
+const submitFeedback = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const userId = req.userId;
+        const { rating, comment } = req.body;
+        const enrollment = await Enrollment_1.default.findOne({ userId, courseId });
+        if (!enrollment) {
+            res.status(403).json({ success: false, message: 'Enroll in the course to leave feedback' });
+            return;
+        }
+        let created = false;
+        let feedback = await Feedback_1.default.findOne({ userId, courseId });
+        if (feedback) {
+            feedback.rating = rating;
+            feedback.comment = comment;
+            await feedback.save();
+        }
+        else {
+            feedback = new Feedback_1.default({ userId, courseId, rating, comment });
+            await feedback.save();
+            created = true;
+        }
+        if (created) {
+            const course = await Course_1.default.findById(courseId);
+            if (course) {
+                const total = course.rating.average * course.rating.count + rating;
+                course.rating.count += 1;
+                course.rating.average = total / course.rating.count;
+                await course.save();
+            }
+        }
+        else {
+            const agg = await Feedback_1.default.aggregate([
+                { $match: { courseId } },
+                { $group: { _id: '$courseId', avg: { $avg: '$rating' }, count: { $sum: 1 } } }
+            ]);
+            if (agg[0]) {
+                await Course_1.default.updateOne({ _id: courseId }, { $set: { 'rating.average': agg[0].avg, 'rating.count': agg[0].count } });
+            }
+        }
+        res.status(200).json({ success: true, message: 'Feedback submitted', data: { feedback } });
+    }
+    catch (error) {
+        console.error('Submit feedback error:', error);
+        res.status(500).json({ success: false, message: 'Failed to submit feedback' });
+    }
+};
+exports.submitFeedback = submitFeedback;
+const getCourseFeedback = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const feedback = await Feedback_1.default.find({ courseId }).sort({ createdAt: -1 }).limit(50).select('-__v');
+        res.status(200).json({ success: true, message: 'Feedback retrieved', data: { feedback } });
+    }
+    catch (error) {
+        console.error('Get feedback error:', error);
+        res.status(500).json({ success: false, message: 'Failed to load feedback' });
+    }
+};
+exports.getCourseFeedback = getCourseFeedback;
 const getCourse = async (req, res) => {
     try {
         const { courseId } = req.params;
@@ -178,6 +239,39 @@ const enrollCourse = async (req, res) => {
     }
 };
 exports.enrollCourse = enrollCourse;
+const unenrollCourse = async (req, res) => {
+    try {
+        const { courseId } = req.params;
+        const userId = req.userId;
+        const enrollment = await Enrollment_1.default.findOne({ userId, courseId });
+        if (!enrollment) {
+            res.status(404).json({
+                success: false,
+                message: 'Enrollment not found'
+            });
+            return;
+        }
+        await Enrollment_1.default.deleteOne({ _id: enrollment._id });
+        const course = await Course_1.default.findOne({ _id: courseId });
+        if (course) {
+            course.enrollmentCount = Math.max(0, (course.enrollmentCount || 0) - 1);
+            await course.save();
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Successfully unenrolled from course'
+        });
+    }
+    catch (error) {
+        console.error('Unenroll course error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to unenroll from course',
+            errors: ['Internal server error']
+        });
+    }
+};
+exports.unenrollCourse = unenrollCourse;
 const getUserEnrollments = async (req, res) => {
     try {
         const userId = req.userId;
@@ -265,7 +359,8 @@ const createCourse = async (req, res) => {
             previewVideo,
             tags,
             requirements,
-            learningOutcomes
+            learningOutcomes,
+            isPublished: true
         });
         await course.save();
         res.status(201).json({

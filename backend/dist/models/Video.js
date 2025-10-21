@@ -71,9 +71,13 @@ const VideoSchema = new mongoose_1.Schema({
         type: Boolean,
         default: false
     },
+    startTime: {
+        type: Number,
+        required: false
+    },
     thumbnail: {
         type: String,
-        required: [true, 'Video thumbnail is required']
+        required: [true, 'Thumbnail URL is required']
     },
     resources: [{
             title: {

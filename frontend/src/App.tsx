@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -7,8 +8,11 @@ import Dashboard from './pages/Dashboard'
 import CoursesPage from './pages/CoursesPage'
 import CourseDetailPage from './pages/CourseDetailPage'
 import CourseLearningPage from './pages/CourseLearningPage'
+import ProfilePage from './pages/ProfilePage'
 import QuizTaking from './components/QuizTaking'
 import './App.css'
+import GlobalAINovaButton from './components/GlobalAINovaButton'
+import Chatbot from './components/Chatbot'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -111,9 +115,19 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
+
+        {/* Profile Route */}
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
         
-        {/* Catch all route - redirect to home */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* Catch all route - redirect to landing page */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
@@ -123,9 +137,14 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <AppRoutes />
+          {/* Global AI Nova trigger and chat widget */}
+          <GlobalAINovaButton />
+          <Chatbot showLauncher={false} />
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   )
 }

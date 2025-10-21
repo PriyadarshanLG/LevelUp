@@ -2,7 +2,8 @@ import { Router } from 'express'
 import {
   chatWithAI,
   getConversationSuggestions,
-  testAIService
+  testAIService,
+  generateAIQuiz
 } from '../controllers/chatbotController'
 import { authenticate, authorize } from '../middleware/auth'
 
@@ -11,6 +12,7 @@ const router = Router()
 // Protected routes (authentication required)
 router.post('/chat', authenticate, chatWithAI) // Chat with AI assistant
 router.get('/suggestions', authenticate, getConversationSuggestions) // Get conversation suggestions
+router.post('/generate-quiz', authenticate, generateAIQuiz) // Generate concept-aware AI quiz
 
 // Admin routes (admin only)
 router.get('/test', authenticate, authorize('admin'), testAIService) // Test AI service

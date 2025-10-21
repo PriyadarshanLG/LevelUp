@@ -2,15 +2,7 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
-// User interface
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  avatar?: string
-  isEmailVerified: boolean
-}
+import type { User } from '../types/user';
 
 // Course interface
 export interface Course {
@@ -38,6 +30,10 @@ export interface Course {
   }
   requirements: string[]
   learningOutcomes: string[]
+  importantTopics: string[];
+  timeManagement: string[];
+  tipsAndTricks: string[];
+  weeklyAssignments: { week: number; title: string; description: string }[];
   createdAt: string
   updatedAt: string
 }
@@ -159,6 +155,28 @@ export interface QuizQuestionResult {
   explanation?: string
 }
 
+// Certificate interface
+export interface Certificate {
+  _id: string
+  userId: string
+  courseId: string
+  userName: string
+  courseName: string
+  issuedAt: string
+  certificateUrl: string
+  isVerified: boolean
+}
+
+// Feedback types
+export interface Feedback {
+  _id: string
+  userId: string
+  courseId: string
+  rating: number
+  comment?: string
+  createdAt: string
+}
+
 // Generic API response interface
 export interface APIResponse<T = any> {
   success: boolean
@@ -248,6 +266,44 @@ const apiRequest = async <T>(
   }
 }
 
+// Blob request helper (for file downloads)
+const apiRequestBlob = async (
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<Blob> => {
+  const url = `${API_BASE_URL}${endpoint}`
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (options.headers) {
+    Object.entries(options.headers as Record<string, string>).forEach(([key, value]) => {
+      headers[key] = value
+    })
+  }
+
+  const token = localStorage.getItem('authToken')
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  })
+
+  if (!response.ok) {
+    let message = 'An error occurred'
+    try {
+      const json = await response.json()
+      message = json?.message || message
+    } catch {}
+    throw new APIError(message, response.status)
+  }
+
+  return response.blob()
+}
+
 // Auth API functions
 export const authAPI = {
   // Register new user
@@ -285,6 +341,13 @@ export const authAPI = {
     })
   },
 
+  // Delete account
+  deleteAccount: async (): Promise<{ success: boolean; message: string }> => {
+    return apiRequest('/auth/delete-account', {
+      method: 'DELETE',
+    })
+  },
+
   // Check auth status
   checkAuth: async (): Promise<boolean> => {
     try {
@@ -293,6 +356,41 @@ export const authAPI = {
     } catch {
       return false
     }
+  }
+}
+
+// Profile API functions
+export const profileAPI = {
+  // Get user profile
+  getProfile: async () => {
+    return apiRequest<APIResponse<{
+      user: User
+    }>>('/profile')
+  },
+
+  // Update user profile
+  updateProfile: async (profileData: {
+    dateOfBirth?: Date;
+    gender?: 'male' | 'female' | 'other' | 'prefer-not-to-say';
+    phoneNumber?: string;
+    profession?: string;
+    organization?: string;
+    bio?: string;
+    location?: string;
+    socialLinks?: {
+      linkedin?: string;
+      twitter?: string;
+      github?: string;
+      website?: string;
+    };
+    interests?: string[];
+  }) => {
+    return apiRequest<APIResponse<{
+      user: User
+    }>>('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    })
   }
 }
 
@@ -336,10 +434,24 @@ export const courseAPI = {
     }>>(`/courses/${courseId}`)
   },
 
+  createCourse: async (courseData: Omit<Course, '_id' | 'instructor' | 'isPublished' | 'enrollmentCount' | 'rating' | 'createdAt' | 'updatedAt' | 'duration' | 'importantTopics' | 'timeManagement' | 'tipsAndTricks' | 'weeklyAssignments'>) => {
+    return apiRequest<APIResponse<{ course: Course }>>('/courses', {
+        method: 'POST',
+        body: JSON.stringify(courseData)
+    })
+  },
+
   // Enroll in course
   enrollCourse: async (courseId: string) => {
     return apiRequest<APIResponse<{ enrollment: Enrollment }>>(`/courses/${courseId}/enroll`, {
       method: 'POST'
+    })
+  },
+
+  // Unenroll from course
+  unenrollCourse: async (courseId: string) => {
+    return apiRequest<APIResponse<any>>(`/courses/${courseId}/enroll`, {
+      method: 'DELETE'
     })
   },
 
@@ -418,6 +530,26 @@ export const chatbotAPI = {
         conversationHistory,
         courseContext
       })
+    })
+  },
+
+  // Generate AI Quiz (concept-aware)
+  generateQuiz: async (
+    params: { topic: string; difficulty: 'easy' | 'intermediate' | 'advanced'; numQuestions?: number }
+  ) => {
+    return apiRequest<APIResponse<{
+      topic: string
+      difficulty: string
+      questions: Array<{
+        id: string
+        question: string
+        options: { id: string; text: string }[]
+        correctOptionId: string
+        explanation?: string
+      }>
+    }>>('/chatbot/generate-quiz', {
+      method: 'POST',
+      body: JSON.stringify(params)
     })
   },
 
@@ -512,6 +644,43 @@ export const quizAPI = {
       method: 'PATCH',
       body: JSON.stringify({ isPublished })
     })
+  }
+}
+
+// Feedback API
+export const feedbackAPI = {
+  getCourseFeedback: async (courseId: string) => {
+    return apiRequest<APIResponse<{ feedback: Feedback[] }>>(`/courses/${courseId}/feedback`)
+  },
+  submitFeedback: async (courseId: string, rating: number, comment?: string) => {
+    return apiRequest<APIResponse<{ feedback: Feedback }>>(`/courses/${courseId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment })
+    })
+  }
+}
+
+// Certificate API functions
+export const certificateAPI = {
+  // Generate certificate for a course
+  generateCertificate: async (courseId: string) => {
+    return apiRequest<APIResponse<{
+      certificate: Certificate
+    }>>(`/certificates/generate/${courseId}`, {
+      method: 'POST'
+    })
+  },
+
+  // Get current user's certificates
+  getMyCertificates: async () => {
+    return apiRequest<APIResponse<{
+      certificates: Certificate[]
+    }>>('/certificates/my-certificates')
+  },
+
+  // Download certificate image as Blob
+  downloadCertificate: async (certificateId: string) => {
+    return apiRequestBlob(`/certificates/download/${certificateId}`)
   }
 }
 

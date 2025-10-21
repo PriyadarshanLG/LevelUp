@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Clock, AlertCircle, CheckCircle2, X, ArrowLeft, ArrowRight } from 'lucide-react'
-import { quizAPI, APIError } from '../utils/api'
+import { quizAPI, certificateAPI, APIError } from '../utils/api'
 import type { Quiz, QuizResult } from '../utils/api'
 
 interface QuizAnswer {
@@ -30,6 +30,7 @@ const QuizTaking: React.FC = () => {
   // Quiz results
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
   const [showResults, setShowResults] = useState(false)
+  const [downloadingCert, setDownloadingCert] = useState(false)
 
   const timerRef = useRef<number | null>(null)
 
@@ -172,6 +173,31 @@ const QuizTaking: React.FC = () => {
     }
   }
 
+  const handleDownloadCertificate = async () => {
+    if (!quiz || !quizResult?.passed) return
+    try {
+      setDownloadingCert(true)
+      // Generate (or reuse existing) certificate
+      const genRes = await certificateAPI.generateCertificate(quiz.courseId)
+      const certificate = genRes.data.certificate
+      // Download the image
+      const blob = await certificateAPI.downloadCertificate(certificate._id)
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${certificate.courseName.replace(/[^a-zA-Z0-9]/g, '_')}_Certificate.png`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to download certificate:', err)
+      alert('Failed to download certificate. Please try again later.')
+    } finally {
+      setDownloadingCert(false)
+    }
+  }
+
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -214,12 +240,12 @@ const QuizTaking: React.FC = () => {
 
   if (showResults && quizResult) {
     return (
-      <div className="min-h-screen bg-zara-black text-zara-white">
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white">
         {/* Results Header */}
-        <div className="bg-zara-charcoal border-b border-zara-gray py-6">
+        <div className="bg-slate-900/90 backdrop-blur border-b border-slate-700 py-6">
           <div className="max-w-4xl mx-auto px-6">
-            <h1 className="text-2xl font-light text-zara-white mb-2">Quiz Completed</h1>
-            <p className="text-zara-lightgray font-light">{quiz.title}</p>
+            <h1 className="text-2xl font-semibold mb-2">Quiz Completed</h1>
+            <p className="text-slate-300">{quiz.title}</p>
           </div>
         </div>
 
@@ -227,8 +253,8 @@ const QuizTaking: React.FC = () => {
         <div className="max-w-4xl mx-auto px-6 py-12">
           {/* Score Summary */}
           <div className="text-center mb-12">
-            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 ${
-              quizResult.passed ? 'bg-green-600' : 'bg-red-600'
+            <div className={`inline-flex items-center justify-center w-24 h-24 rounded-full mb-6 shadow-lg ${
+              quizResult.passed ? 'bg-emerald-500' : 'bg-rose-500'
             }`}>
               {quizResult.passed ? (
                 <CheckCircle2 size={40} className="text-white" />
@@ -237,44 +263,44 @@ const QuizTaking: React.FC = () => {
               )}
             </div>
             
-            <h2 className="text-4xl font-light text-zara-white mb-4">
+            <h2 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500">
               {quizResult.percentage}%
             </h2>
             
-            <p className="text-lg font-light mb-2">
+            <p className="text-lg font-medium mb-2">
               {quizResult.passed ? (
-                <span className="text-green-500">Congratulations! You passed!</span>
+                <span className="text-emerald-400">Congratulations! You passed!</span>
               ) : (
-                <span className="text-red-500">You didn't pass this time</span>
+                <span className="text-rose-400">You didn't pass this time</span>
               )}
             </p>
             
-            <p className="text-zara-lightgray font-light">
+            <p className="text-slate-300">
               You scored {quizResult.score} out of {quizResult.maxScore} points
             </p>
           </div>
 
           {/* Detailed Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            <div className="bg-zara-charcoal p-6 rounded text-center">
-              <div className="text-2xl font-light text-zara-white mb-2">
+            <div className="bg-slate-900/70 border border-slate-700 p-6 rounded-xl text-center">
+              <div className="text-2xl font-semibold mb-2">
                 {quizResult.score}/{quizResult.maxScore}
               </div>
-              <p className="text-sm font-light text-zara-lightgray">Points Earned</p>
+              <p className="text-sm text-slate-300">Points Earned</p>
             </div>
             
-            <div className="bg-zara-charcoal p-6 rounded text-center">
-              <div className="text-2xl font-light text-zara-white mb-2">
+            <div className="bg-slate-900/70 border border-slate-700 p-6 rounded-xl text-center">
+              <div className="text-2xl font-semibold mb-2">
                 {formatTime(quizResult.timeSpent)}
               </div>
-              <p className="text-sm font-light text-zara-lightgray">Time Spent</p>
+              <p className="text-sm text-slate-300">Time Spent</p>
             </div>
             
-            <div className="bg-zara-charcoal p-6 rounded text-center">
-              <div className="text-2xl font-light text-zara-white mb-2">
+            <div className="bg-slate-900/70 border border-slate-700 p-6 rounded-xl text-center">
+              <div className="text-2xl font-semibold mb-2">
                 {quiz.passingScore}%
               </div>
-              <p className="text-sm font-light text-zara-lightgray">Passing Score</p>
+              <p className="text-sm text-slate-300">Passing Score</p>
             </div>
           </div>
 
@@ -282,7 +308,7 @@ const QuizTaking: React.FC = () => {
           <div className="flex justify-center space-x-4">
             <button
               onClick={() => navigate(-1)}
-              className="px-8 py-3 text-sm font-light tracking-wide uppercase border border-zara-gray text-zara-white hover:bg-zara-charcoal transition-colors duration-200"
+              className="px-8 py-3 text-sm font-medium tracking-wide uppercase rounded-lg border border-slate-600 text-white hover:bg-slate-800 transition-colors duration-200"
             >
               Back to Course
             </button>
@@ -306,9 +332,19 @@ const QuizTaking: React.FC = () => {
                   }))
                   setAnswers(initialAnswers)
                 }}
-                className="px-8 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
+                className="px-8 py-3 text-sm font-medium tracking-wide uppercase rounded-lg bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 text-white hover:brightness-110 transition-colors duration-200"
               >
                 Retake Quiz
+              </button>
+            )}
+
+            {quizResult.passed && (
+              <button
+                onClick={handleDownloadCertificate}
+                disabled={downloadingCert}
+                className="px-8 py-3 text-sm font-medium tracking-wide uppercase rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition-colors duration-200 disabled:opacity-50"
+              >
+                {downloadingCert ? 'Preparing...' : 'Download Certificate'}
               </button>
             )}
           </div>
@@ -322,14 +358,14 @@ const QuizTaking: React.FC = () => {
   const progress = getQuestionProgress()
 
   return (
-    <div className="min-h-screen bg-zara-black text-zara-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-zara-white">
       {/* Quiz Header */}
-      <div className="bg-zara-charcoal border-b border-zara-gray">
+      <div className="bg-slate-900/90 backdrop-blur border-b border-slate-700">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-lg font-normal text-zara-white">{quiz.title}</h1>
-              <p className="text-sm font-light text-zara-lightgray">
+              <h1 className="text-xl font-semibold text-white">{quiz.title}</h1>
+              <p className="text-sm font-light text-slate-300">
                 Question {currentQuestionIndex + 1} of {quiz.questions.length}
               </p>
             </div>
@@ -337,14 +373,14 @@ const QuizTaking: React.FC = () => {
             <div className="flex items-center space-x-6">
               {/* Timer */}
               {timeLeft !== null && (
-                <div className={`flex items-center ${timeLeft < 300 ? 'text-red-500' : 'text-zara-lightgray'}`}>
+                <div className={`flex items-center ${timeLeft < 300 ? 'text-rose-400' : 'text-slate-300'}`}>
                   <Clock size={16} className="mr-2" />
                   <span className="font-mono">{formatTime(timeLeft)}</span>
                 </div>
               )}
               
               {/* Progress */}
-              <div className="text-sm font-light text-zara-lightgray">
+              <div className="text-sm font-light text-slate-300">
                 {progress.answered}/{progress.total} answered
               </div>
             </div>
@@ -352,9 +388,9 @@ const QuizTaking: React.FC = () => {
           
           {/* Progress Bar */}
           <div className="mt-4">
-            <div className="w-full bg-zara-gray h-1 rounded">
+            <div className="w-full bg-slate-700 h-2 rounded-full overflow-hidden">
               <div 
-                className="bg-zara-white h-1 rounded transition-all duration-300"
+                className="h-2 rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 transition-all duration-300"
                 style={{ width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }}
               />
             </div>
@@ -365,11 +401,11 @@ const QuizTaking: React.FC = () => {
       {/* Question Content */}
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h2 className="text-xl font-light text-zara-white mb-6 leading-relaxed">
+          <h2 className="text-2xl font-medium text-white mb-6 leading-relaxed">
             {currentQuestion.question}
           </h2>
           
-          <div className="text-sm font-light text-zara-lightgray mb-8">
+          <div className="text-sm font-light text-slate-300 mb-8">
             Worth {currentQuestion.points} {currentQuestion.points === 1 ? 'point' : 'points'}
           </div>
 
@@ -393,10 +429,10 @@ const QuizTaking: React.FC = () => {
                   <button
                     key={option.id}
                     onClick={() => handleOptionSelect(currentQuestion.id, option.id, currentQuestion.type)}
-                    className={`w-full text-left p-4 rounded border transition-all duration-200 ${
+                    className={`w-full text-left p-4 rounded-lg border transition-all duration-200 ${
                       isSelected
-                        ? 'bg-zara-white text-zara-black border-zara-white'
-                        : 'bg-zara-charcoal text-zara-white border-zara-gray hover:border-zara-lightgray'
+                        ? 'bg-white text-slate-900 border-transparent shadow'
+                        : 'bg-slate-900/70 text-white border-slate-700 hover:border-slate-500'
                     }`}
                   >
                     <div className="flex items-center">
@@ -404,8 +440,8 @@ const QuizTaking: React.FC = () => {
                         currentQuestion.type === 'multiple_choice' ? 'rounded' : 'rounded-full'
                       } ${
                         isSelected
-                          ? 'bg-zara-black border-zara-black'
-                          : 'border-zara-lightgray'
+                          ? 'bg-slate-900 border-slate-900'
+                          : 'border-slate-400'
                       }`}>
                         {isSelected && (
                           <div className={`w-2 h-2 ${
@@ -427,7 +463,7 @@ const QuizTaking: React.FC = () => {
           <button
             onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
             disabled={currentQuestionIndex === 0}
-            className="flex items-center px-6 py-3 text-sm font-light tracking-wide uppercase border border-zara-gray text-zara-white hover:bg-zara-charcoal transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center px-6 py-3 text-sm font-medium tracking-wide uppercase rounded-lg border border-slate-600 text-white hover:bg-slate-800 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowLeft size={16} className="mr-2" />
             Previous
@@ -437,14 +473,14 @@ const QuizTaking: React.FC = () => {
             {currentQuestionIndex === quiz.questions.length - 1 ? (
               <button
                 onClick={() => setShowSubmitConfirm(true)}
-                className="px-8 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
+                className="px-8 py-3 text-sm font-medium tracking-wide uppercase rounded-lg bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 text-white hover:brightness-110 transition-colors duration-200"
               >
                 Submit Quiz
               </button>
             ) : (
               <button
                 onClick={() => setCurrentQuestionIndex(Math.min(quiz.questions.length - 1, currentQuestionIndex + 1))}
-                className="flex items-center px-6 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
+                className="flex items-center px-6 py-3 text-sm font-medium tracking-wide uppercase rounded-lg bg-white text-slate-900 hover:bg-slate-100 transition-colors duration-200"
               >
                 Next
                 <ArrowRight size={16} className="ml-2" />
@@ -456,14 +492,14 @@ const QuizTaking: React.FC = () => {
 
       {/* Submit Confirmation Modal */}
       {showSubmitConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-zara-charcoal border border-zara-gray rounded-lg p-8 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-8 max-w-md w-full mx-4 shadow-xl">
             <div className="flex items-center mb-6">
-              <AlertCircle size={24} className="text-yellow-500 mr-4" />
-              <h3 className="text-lg font-normal text-zara-white">Submit Quiz?</h3>
+              <AlertCircle size={24} className="text-amber-400 mr-4" />
+              <h3 className="text-lg font-semibold text-white">Submit Quiz?</h3>
             </div>
             
-            <p className="text-zara-lightgray font-light mb-6">
+            <p className="text-slate-300 font-light mb-6">
               Are you sure you want to submit your quiz? You have answered {progress.answered} out of {progress.total} questions.
               {progress.answered < progress.total && " You can't change your answers after submitting."}
             </p>
@@ -471,14 +507,14 @@ const QuizTaking: React.FC = () => {
             <div className="flex space-x-4">
               <button
                 onClick={() => setShowSubmitConfirm(false)}
-                className="flex-1 px-4 py-3 text-sm font-light tracking-wide uppercase border border-zara-gray text-zara-white hover:bg-zara-black transition-colors duration-200"
+                className="flex-1 px-4 py-3 text-sm font-medium tracking-wide uppercase rounded-lg border border-slate-600 text-white hover:bg-slate-800 transition-colors duration-200"
               >
                 Cancel
               </button>
               <button
                 onClick={submitQuiz}
                 disabled={submitting}
-                className="flex-1 px-4 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200 disabled:opacity-50"
+                className="flex-1 px-4 py-3 text-sm font-medium tracking-wide uppercase rounded-lg bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500 text-white hover:brightness-110 transition-colors duration-200 disabled:opacity-50"
               >
                 {submitting ? 'Submitting...' : 'Submit'}
               </button>

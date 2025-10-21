@@ -93,7 +93,8 @@ const CourseSchema = new mongoose_1.Schema({
     duration: {
         type: Number,
         required: [true, 'Course duration is required'],
-        min: [1, 'Duration must be at least 1 minute']
+        min: [0, 'Duration must be at least 0 minutes'],
+        default: 0
     },
     price: {
         type: Number,
@@ -143,6 +144,23 @@ const CourseSchema = new mongoose_1.Schema({
     learningOutcomes: [{
             type: String,
             trim: true
+        }],
+    importantTopics: [{
+            type: String,
+            trim: true
+        }],
+    timeManagement: [{
+            type: String,
+            trim: true
+        }],
+    tipsAndTricks: [{
+            type: String,
+            trim: true
+        }],
+    weeklyAssignments: [{
+            week: { type: Number, required: true },
+            title: { type: String, required: true, trim: true },
+            description: { type: String, required: true, trim: true }
         }]
 }, {
     timestamps: true

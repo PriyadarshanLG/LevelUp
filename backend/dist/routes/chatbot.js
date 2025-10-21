@@ -6,6 +6,7 @@ const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.post('/chat', auth_1.authenticate, chatbotController_1.chatWithAI);
 router.get('/suggestions', auth_1.authenticate, chatbotController_1.getConversationSuggestions);
+router.post('/generate-quiz', auth_1.authenticate, chatbotController_1.generateAIQuiz);
 router.get('/test', auth_1.authenticate, (0, auth_1.authorize)('admin'), chatbotController_1.testAIService);
 router.get('/health', (req, res) => {
     res.json({

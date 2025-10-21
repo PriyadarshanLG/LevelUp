@@ -8,6 +8,7 @@ export interface IVideo extends Document {
     duration: number;
     order: number;
     isPreview: boolean;
+    startTime?: number;
     thumbnail: string;
     resources: {
         title: string;
