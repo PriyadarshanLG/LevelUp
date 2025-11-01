@@ -1,1 +1,24 @@
 /* Zara-inspired minimal styles */
+
+/* Smooth scrolling for better animation experience */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent layout shift during page transitions */
+body {
+  overflow-x: hidden;
+}
+
+/* Enhanced page transitions with hardware acceleration */
+.page-transition-wrapper {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Smooth animations for all interactive elements */
+* {
+  transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}

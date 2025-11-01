@@ -10,6 +10,18 @@ import CourseDetailPage from './pages/CourseDetailPage'
 import CourseLearningPage from './pages/CourseLearningPage'
 import ProfilePage from './pages/ProfilePage'
 import QuizTaking from './components/QuizTaking'
+import CreateClassroom from './pages/CreateClassroom'
+import MyClassrooms from './pages/MyClassrooms'
+import JoinClassroom from './pages/JoinClassroom'
+import StudentClassrooms from './pages/StudentClassrooms'
+import ClassroomDetailPage from './pages/ClassroomDetailPage'
+import AssignmentSubmissionsPage from './pages/AssignmentSubmissionsPage'
+import AssignmentSubmitPage from './pages/AssignmentSubmitPage'
+import ClassroomStatisticsPage from './pages/ClassroomStatisticsPage'
+import AdminCreateCourse from './pages/AdminCreateCourse'
+import AdminAddVideo from './pages/AdminAddVideo'
+import TeacherDashboard from './pages/TeacherDashboard'
+import PageTransition from './components/PageTransition'
 import './App.css'
 import GlobalAINovaButton from './components/GlobalAINovaButton'
 import Chatbot from './components/Chatbot'
@@ -56,21 +68,25 @@ const AppRoutes = () => {
     <div className="min-h-screen bg-zara-white text-zara-charcoal">
       <Routes>
         {/* Public Routes */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
         <Route 
           path="/login" 
           element={
-            <PublicRoute>
-              <LoginPage />
-            </PublicRoute>
+            <PageTransition>
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            </PageTransition>
           } 
         />
         <Route 
           path="/register" 
           element={
-            <PublicRoute>
-              <RegisterPage />
-            </PublicRoute>
+            <PageTransition>
+              <PublicRoute>
+                <RegisterPage />
+              </PublicRoute>
+            </PageTransition>
           } 
         />
         
@@ -78,41 +94,81 @@ const AppRoutes = () => {
         <Route 
           path="/dashboard" 
           element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
         <Route 
           path="/courses" 
           element={
-            <ProtectedRoute>
-              <CoursesPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <CoursesPage />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
         <Route 
           path="/course/:courseId" 
           element={
-            <ProtectedRoute>
-              <CourseDetailPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <CourseDetailPage />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
         <Route 
           path="/course/:courseId/learn" 
           element={
-            <ProtectedRoute>
-              <CourseLearningPage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <CourseLearningPage />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/course/:courseId/add-video" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <AdminAddVideo />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/admin/courses/new" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <AdminCreateCourse />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/teacher" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
         <Route 
           path="/quiz/:quizId/take" 
           element={
-            <ProtectedRoute>
-              <QuizTaking />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <QuizTaking />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
 
@@ -120,9 +176,95 @@ const AppRoutes = () => {
         <Route 
           path="/profile" 
           element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
+            <PageTransition>
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+
+        {/* Classroom Routes */}
+        <Route 
+          path="/create-classroom" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <CreateClassroom />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/my-classrooms" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <MyClassrooms />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/join-classroom" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <JoinClassroom />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/student-classrooms" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <StudentClassrooms />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/classroom/:classroomId" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <ClassroomDetailPage />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/classroom/:classroomId/statistics" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <ClassroomStatisticsPage />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+
+        {/* Assignment Routes */}
+        <Route 
+          path="/assignment/:assignmentId/submissions" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <AssignmentSubmissionsPage />
+              </ProtectedRoute>
+            </PageTransition>
+          } 
+        />
+        <Route 
+          path="/assignment/:assignmentId/submit" 
+          element={
+            <PageTransition>
+              <ProtectedRoute>
+                <AssignmentSubmitPage />
+              </ProtectedRoute>
+            </PageTransition>
           } 
         />
         

@@ -13,7 +13,7 @@ interface AuthContextType {
 
   // Actions
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, role?: 'student' | 'teacher') => Promise<void>
   logout: () => void
   clearError: () => void
   deleteAccount: () => Promise<void>
@@ -114,12 +114,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   // Register function
-  const register = async (name: string, email: string, password: string): Promise<void> => {
+  const register = async (name: string, email: string, password: string, role?: 'student' | 'teacher'): Promise<void> => {
     try {
       setError(null)
       setIsLoading(true)
 
-      const response = await authAPI.register({ name, email, password })
+      const response = await authAPI.register({ name, email, password, role })
       
       if (response.success && response.data) {
         // Save token

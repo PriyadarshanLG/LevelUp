@@ -12,15 +12,18 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20 sm:h-24">
             <div className="flex-shrink-0 flex items-center">
-              <Link to="/" className="flex items-center" style={{ gap: '5px' }}>
-                <img 
-                  src="/level up.png" 
-                  alt="LevelUp Logo" 
-                  className="h-16 sm:h-[70px] lg:h-[110px] w-auto object-contain transition-transform duration-300 hover:rotate-12"
-                  style={{ filter: 'drop-shadow(0 0 15px rgba(255, 255, 255, 0.5))' }}
-                />
-                <h1 className="text-2xl sm:text-3xl font-righteous font-medium tracking-wider">
-                  <span className="text-black">Level</span><span className="text-orange-500">Up</span>
+              <Link to="/" className="group flex items-center transition-all duration-500 ease-out hover:scale-105">
+                <div className="relative">
+                  <img 
+                    src="/level up.png" 
+                    alt="LevelUp Logo" 
+                    className="h-24 sm:h-28 w-auto object-contain transition-all duration-500 ease-out group-hover:rotate-6 group-hover:scale-110"
+                    style={{ filter: 'drop-shadow(0 0 15px rgba(255, 255, 255, 0.5))' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500/30 to-indigo-500/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-righteous font-semibold whitespace-nowrap -ml-6 transition-all duration-300">
+                  <span className="text-black dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-300">Level</span><span className="text-orange-500 group-hover:text-orange-600 group-hover:drop-shadow-lg transition-all duration-300">Up</span>
                 </h1>
               </Link>
             </div>

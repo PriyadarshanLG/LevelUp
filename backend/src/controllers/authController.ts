@@ -25,7 +25,7 @@ interface AuthResponse {
 // Register new user
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password } = req.body
+    const { name, email, password, role } = req.body
 
     // Validate input
     const validation = validateRegistration({ name, email, password })
@@ -38,6 +38,9 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       } as AuthResponse)
       return
     }
+
+    // Validate role (only student or teacher allowed during registration)
+    const userRole = role && (role === 'student' || role === 'teacher') ? role : 'student'
 
     // Sanitize inputs
     const sanitizedName = sanitizeUserInput(name)
@@ -69,7 +72,8 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const user: IUser = new User({
       name: sanitizedName,
       email: sanitizedEmail,
-      password: password // Will be hashed by the pre-save middleware
+      password: password, // Will be hashed by the pre-save middleware
+      role: userRole
     })
 
     await user.save()

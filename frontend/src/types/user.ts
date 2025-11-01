@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  role: 'student' | 'instructor' | 'admin';
+  role: 'student' | 'teacher' | 'admin' | 'instructor';
   isEmailVerified: boolean;
   // Profile fields
   dateOfBirth?: Date;

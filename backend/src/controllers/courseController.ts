@@ -148,6 +148,10 @@ export const getCourseFeedback = async (req: Request, res: Response): Promise<vo
 export const getCourse = async (req: Request, res: Response): Promise<void> => {
   try {
     const { courseId } = req.params
+    
+    console.log('=== getCourse Request ===')
+    console.log('Course ID:', courseId)
+    console.log('User ID:', req.userId)
 
     const course = await Course.findOne({
       _id: courseId,
@@ -155,12 +159,15 @@ export const getCourse = async (req: Request, res: Response): Promise<void> => {
     }).select('-__v')
 
     if (!course) {
+      console.log('❌ Course not found in database')
       res.status(404).json({
         success: false,
         message: 'Course not found'
       })
       return
     }
+    
+    console.log('✅ Course found:', course.title)
 
     // Get course videos (only preview videos for non-enrolled users)
     const isEnrolled = req.user ? await Enrollment.findOne({
@@ -168,21 +175,30 @@ export const getCourse = async (req: Request, res: Response): Promise<void> => {
       courseId,
       status: { $in: ['active', 'completed'] }
     }) : null
+    
+    console.log('Enrollment status:', isEnrolled ? 'Enrolled' : 'Not enrolled')
 
     const videoQuery: any = { courseId, isPublished: true }
     if (!isEnrolled) {
       videoQuery.isPreview = true
     }
+    
+    console.log('Video query:', JSON.stringify(videoQuery))
 
     const videos = await Video.find(videoQuery)
       .sort({ order: 1 })
       .select('-__v')
+      
+    console.log('Videos found:', videos.length)
+    console.log('Video titles:', videos.map(v => v.title))
 
     // Get course quizzes (only for enrolled users)
     const quizzes = isEnrolled ? await Quiz.find({
       courseId,
       isPublished: true
     }).sort({ order: 1 }).select('-questions.correctAnswer -__v') : []
+
+    console.log('Sending response with', videos.length, 'videos')
 
     res.status(200).json({
       success: true,
@@ -408,9 +424,13 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
   }
 }
 
-// Admin: Create course (protected - admin/instructor only)
+// Admin: Create course (protected - admin only)
 export const createCourse = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('=== Create Course Request ===')
+    console.log('Body:', req.body)
+    console.log('Files:', req.files)
+    
     const {
       title,
       description,
@@ -418,12 +438,35 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
       category,
       level,
       price,
-      thumbnail,
-      previewVideo,
       tags,
       requirements,
       learningOutcomes
     } = req.body
+
+    // Validate required fields
+    if (!title || !description || !shortDescription || !category || !level) {
+      res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: ['Title, description, short description, category, and level are required']
+      })
+      return
+    }
+
+    // Get files from uploaded files (using multer fields)
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] }
+    
+    // Get thumbnail from uploaded file or use default
+    let thumbnail = '/level up.png'
+    if (files && files.thumbnail && files.thumbnail[0]) {
+      thumbnail = `/uploads/thumbnails/${files.thumbnail[0].filename}`
+    }
+
+    // Get preview video from uploaded file if provided
+    let previewVideo = ''
+    if (files && files.previewVideo && files.previewVideo[0]) {
+      previewVideo = `/uploads/videos/${files.previewVideo[0].filename}`
+    }
 
     const instructor = {
       id: req.userId!,
@@ -431,24 +474,45 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
       email: req.user!.email
     }
 
+    // Parse array fields if they come as JSON strings (safely)
+    let parsedTags: string[] = []
+    let parsedRequirements: string[] = []
+    let parsedLearningOutcomes: string[] = []
+
+    try {
+      parsedTags = tags ? (typeof tags === 'string' ? JSON.parse(tags) : tags) : []
+      parsedRequirements = requirements ? (typeof requirements === 'string' ? JSON.parse(requirements) : requirements) : []
+      parsedLearningOutcomes = learningOutcomes ? (typeof learningOutcomes === 'string' ? JSON.parse(learningOutcomes) : learningOutcomes) : []
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      // If parsing fails, use empty arrays
+      parsedTags = []
+      parsedRequirements = []
+      parsedLearningOutcomes = []
+    }
+
     const course = new Course({
-      title,
-      description,
-      shortDescription,
+      title: title.trim(),
+      description: description.trim(),
+      shortDescription: shortDescription.trim(),
       instructor,
-      category,
+      category: category.trim(),
       level,
       duration: 0, // Will be calculated from videos
-      price,
+      price: Number(price) || 0,
       thumbnail,
       previewVideo,
-      tags,
-      requirements,
-      learningOutcomes,
+      tags: parsedTags,
+      requirements: parsedRequirements,
+      learningOutcomes: parsedLearningOutcomes,
       isPublished: true // Publish by default
     })
 
+    console.log('Course object before save:', course)
+
     await course.save()
+
+    console.log('Course saved successfully:', course._id)
 
     res.status(201).json({
       success: true,
@@ -458,9 +522,12 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
 
   } catch (error: any) {
     console.error('Create course error:', error)
+    console.error('Error details:', error.message)
+    console.error('Error stack:', error.stack)
 
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map((err: any) => err.message)
+      console.error('Validation errors:', errors)
       res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -472,6 +539,64 @@ export const createCourse = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       message: 'Failed to create course',
+      errors: [error.message || 'Internal server error']
+    })
+  }
+}
+
+// Delete course (protected - admin/teacher only)
+export const deleteCourse = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { courseId } = req.params
+    const userId = req.userId!
+    const userRole = req.user!.role
+
+    // Find the course
+    const course = await Course.findById(courseId)
+
+    if (!course) {
+      res.status(404).json({
+        success: false,
+        message: 'Course not found'
+      })
+      return
+    }
+
+    // Check authorization: only admin or instructor can delete courses
+    if (userRole !== 'admin' && userRole !== 'instructor') {
+      res.status(403).json({
+        success: false,
+        message: 'Only instructors can delete courses'
+      })
+      return
+    }
+
+    // Delete related data
+    // Delete all videos for this course
+    await Video.deleteMany({ courseId })
+
+    // Delete all quizzes for this course
+    await Quiz.deleteMany({ courseId })
+
+    // Delete all enrollments for this course
+    await Enrollment.deleteMany({ courseId })
+
+    // Delete all feedback for this course
+    await Feedback.deleteMany({ courseId })
+
+    // Delete the course
+    await Course.deleteOne({ _id: courseId })
+
+    res.status(200).json({
+      success: true,
+      message: 'Course and related data deleted successfully'
+    })
+
+  } catch (error: any) {
+    console.error('Delete course error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete course',
       errors: ['Internal server error']
     })
   }

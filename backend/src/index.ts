@@ -16,6 +16,9 @@ import chatbotRoutes from './routes/chatbot'
 import quizRoutes from './routes/quiz'
 import seedRoutes from './routes/seed'
 import certificateRoutes from './routes/certificate'
+import classroomRoutes from './routes/classroom'
+import lessonRoutes from './routes/lesson'
+import assignmentRoutes from './routes/assignment'
 
 const app: Application = express()
 const PORT = process.env.PORT || 5000
@@ -26,8 +29,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173'],
-  credentials: true
+  origin: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }))
 
 app.use(express.json({ limit: '10mb' }))
@@ -35,6 +41,7 @@ app.use(express.urlencoded({ extended: true }))
 
 // Serve static files
 app.use('/public', express.static(path.join(__dirname, '../public')))
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')))
 
 // Basic health check route
 app.get('/api/health', (req: Request, res: Response) => {
@@ -55,6 +62,9 @@ app.use('/api/chatbot', chatbotRoutes)
 app.use('/api/quizzes', quizRoutes)
 app.use('/api/seed', seedRoutes)
 app.use('/api/certificates', certificateRoutes)
+app.use('/api/classrooms', classroomRoutes)
+app.use('/api/lessons', lessonRoutes)
+app.use('/api/assignments', assignmentRoutes)
 
 // MongoDB Connection
 const connectDB = async (): Promise<void> => {

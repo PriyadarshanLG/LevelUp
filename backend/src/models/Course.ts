@@ -74,18 +74,7 @@ const CourseSchema: Schema<ICourse> = new Schema(
     category: {
       type: String,
       required: [true, 'Course category is required'],
-      enum: [
-        'Programming',
-        'Design',
-        'Business',
-        'Marketing',
-        'Data Science',
-        'Personal Development',
-        'Language',
-        'Health & Fitness',
-        'Music',
-        'Photography'
-      ]
+      trim: true
     },
     level: {
       type: String,

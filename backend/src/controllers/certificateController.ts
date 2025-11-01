@@ -48,7 +48,7 @@ export const generateCertificate = async (req: Request, res: Response) => {
 
     // Generate certificate image with required metadata
     console.log('Generating certificate image for:', { userName: user.name, courseName: course.title })
-    const authorName = course.instructor?.name || 'Instructor'
+    const authorName = course.instructor?.name || 'Teacher'
     const certificateUrl = await generateCertificateImage(user.name, course.title, authorName)
     console.log('Certificate image generated:', certificateUrl)
 

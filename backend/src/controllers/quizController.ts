@@ -474,7 +474,7 @@ export const getUserQuizResults = async (req: Request, res: Response): Promise<v
   }
 }
 
-// Create new quiz (admin/instructor only)
+// Create new quiz (admin only)
 export const createQuiz = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
@@ -502,7 +502,7 @@ export const createQuiz = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    // Check if course exists and user has permission
+    // Check if course exists and user has permission (admin only)
     const course = await Course.findById(courseId)
     
     if (!course) {
@@ -513,10 +513,12 @@ export const createQuiz = async (req: Request, res: Response): Promise<void> => 
       return
     }
 
-    if (course.instructor.toString() !== userId) {
+    // Only admin can create quizzes (already checked by authorize middleware)
+    // This additional check ensures the user is admin
+    if (req.user!.role !== 'admin') {
       res.status(403).json({
         success: false,
-        message: 'Only course instructor can create quizzes'
+        message: 'Only admin can create quizzes'
       })
       return
     }
@@ -605,11 +607,11 @@ export const updateQuizStatus = async (req: Request, res: Response): Promise<voi
       return
     }
 
-    // @ts-ignore - courseId is populated
-    if (quiz.courseId.instructor.toString() !== userId) {
+    // Only admin can update quiz status (already checked by authorize middleware)
+    if (req.user!.role !== 'admin') {
       res.status(403).json({
         success: false,
-        message: 'Only course instructor can update quiz status'
+        message: 'Only admin can update quiz status'
       })
       return
     }

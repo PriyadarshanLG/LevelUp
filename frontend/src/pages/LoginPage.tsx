@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Eye, EyeOff, ArrowLeft, Sparkles, Mail, Lock, LogIn, Moon, Sun } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Mail, Lock, LogIn, Moon, Sun } from 'lucide-react'
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({

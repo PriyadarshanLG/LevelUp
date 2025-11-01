@@ -25,12 +25,12 @@ router.post('/:quizId/submit', authenticate, submitQuizAttempt)
 // Get user's quiz results/attempts
 router.get('/:quizId/results', authenticate, getUserQuizResults)
 
-// Admin/Instructor routes
+// Admin routes (only instructors/admin)
 
-// Create new quiz (instructors only)
-router.post('/', authenticate, authorize('admin', 'instructor'), createQuiz)
+// Create new quiz (admin only)
+router.post('/', authenticate, authorize('admin'), createQuiz)
 
 // Update quiz status (publish/unpublish)
-router.patch('/:quizId/status', authenticate, authorize('admin', 'instructor'), updateQuizStatus)
+router.patch('/:quizId/status', authenticate, authorize('admin'), updateQuizStatus)
 
 export default router

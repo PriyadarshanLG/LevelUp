@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ProfileCompletionModal from '../components/ProfileCompletionModal';
-import type { User } from '../types/user';
 import {
   Calendar,
   Phone,
@@ -114,17 +113,17 @@ const ProfilePage = () => {
                   Professional Information
                 </h2>
 
-                {user.profession && (
+                {user.position && (
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <Briefcase size={20} className="mr-3 text-purple-600 dark:text-purple-400" />
-                    <span>{user.profession}</span>
+                    <span>{user.position}</span>
                   </div>
                 )}
 
-                {user.organization && (
+                {user.institution && (
                   <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <Building2 size={20} className="mr-3 text-purple-600 dark:text-purple-400" />
-                    <span>{user.organization}</span>
+                    <span>{user.institution}</span>
                   </div>
                 )}
 

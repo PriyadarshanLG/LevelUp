@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { UserPlus, Mail, Lock, Eye, EyeOff, ArrowLeft, Moon, Sun } from 'lucide-react'
+import { UserPlus, Mail, Lock, Eye, EyeOff, ArrowLeft, Moon, Sun, GraduationCap, Users } from 'lucide-react'
 
 
 const RegisterPage = () => {
@@ -10,7 +10,8 @@ const RegisterPage = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: 'student' as 'student' | 'teacher'
   })
   const [isLoading, setIsLoading] = useState(false)
   const [localError, setLocalError] = useState('')
@@ -55,7 +56,7 @@ const RegisterPage = () => {
     }
 
     try {
-      await register(formData.name, formData.email, formData.password)
+      await register(formData.name, formData.email, formData.password, formData.role)
       navigate('/dashboard')
     } catch (error) {
       // Error is handled by AuthContext
@@ -150,11 +151,11 @@ const RegisterPage = () => {
         </div>
 
         <div className="max-w-sm mx-auto w-full">
-          <div className="mb-8 text-center lg:text-left animate-slide-up">
+          <div className="mb-4 text-center lg:text-left animate-slide-up">
             <div className="flex items-center justify-center lg:justify-start -space-x-1 mb-4">
               <img src="/level up.png" alt="LevelUp Logo" className="h-16 sm:h-[70px] lg:h-[110px] w-auto object-contain" />
               <div>
-                <h2 className="text-3xl font-bold text-gray-800">Create your account</h2>
+                <h2 className="text-3xl font-bold text-gray-800 whitespace-nowrap">Create your account</h2>
                 <p className="text-sm text-gray-700 font-medium">Join our learning community</p>
               </div>
             </div>
@@ -188,6 +189,55 @@ const RegisterPage = () => {
                       value={formData.name}
                       onChange={handleChange}
                     />
+                  </div>
+                </div>
+
+                <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">I am a</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, role: 'student' })}
+                      className={`relative flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                        formData.role === 'student'
+                          ? 'border-blue-500 bg-blue-50 shadow-md'
+                          : 'border-gray-300 bg-white hover:border-blue-300'
+                      }`}
+                    >
+                      <GraduationCap className={`w-6 h-6 mb-1.5 ${formData.role === 'student' ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span className={`text-xs font-semibold ${formData.role === 'student' ? 'text-blue-600' : 'text-gray-600'}`}>
+                        Student
+                      </span>
+                      {formData.role === 'student' && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, role: 'teacher' })}
+                      className={`relative flex flex-col items-center justify-center p-3 border-2 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                        formData.role === 'teacher'
+                          ? 'border-purple-500 bg-purple-50 shadow-md'
+                          : 'border-gray-300 bg-white hover:border-purple-300'
+                      }`}
+                    >
+                      <Users className={`w-6 h-6 mb-1.5 ${formData.role === 'teacher' ? 'text-purple-600' : 'text-gray-400'}`} />
+                      <span className={`text-xs font-semibold ${formData.role === 'teacher' ? 'text-purple-600' : 'text-gray-600'}`}>
+                        Teacher
+                      </span>
+                      {formData.role === 'teacher' && (
+                        <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-purple-500 rounded-full flex items-center justify-center">
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </button>
                   </div>
                 </div>
 

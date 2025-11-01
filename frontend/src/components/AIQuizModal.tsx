@@ -152,10 +152,14 @@ const AIQuizModal: React.FC<AIQuizModalProps> = ({ isOpen, onClose }) => {
     setIsLoading(true)
     try {
       // Prefer backend concept-aware generation; fallback to local if unavailable
+      console.log('Requesting AI quiz for topic:', topic.trim(), 'difficulty:', difficulty)
       const resp = await chatbotAPI.generateQuiz({ topic: topic.trim(), difficulty, numQuestions: 12 })
+      console.log('AI Quiz API response:', resp)
       if (resp?.success && resp.data?.questions?.length) {
+        console.log('Using AI-generated questions:', resp.data.questions.length, 'questions')
         setQuestions(resp.data.questions as any)
       } else {
+        console.log('API returned no questions, using local generator')
         const qs = generateQuiz(topic.trim(), difficulty, 12, openSalt)
         setQuestions(qs)
       }
@@ -193,13 +197,13 @@ const AIQuizModal: React.FC<AIQuizModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 overflow-y-auto">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative z-10 w-full max-w-lg mx-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-lg mx-4 mb-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI Quiz</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white">×</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white text-2xl leading-none">&times;</button>
         </div>
 
         <div className="p-5">

@@ -60,11 +60,14 @@ const CourseLearningPage: React.FC = () => {
     }
   }, [videos, currentVideo])
 
-  // Compute skip offset: always jump 60 minutes ahead, clamped to video duration
+  // Get start time for video (start from beginning or last watched position)
   const getSkipOffsetSeconds = (video: Video) => {
-    const sixtyMinutes = 60 * 60
-    const maxSafeStart = Math.max(0, (video.duration || 0) - 15)
-    return Math.min(sixtyMinutes, maxSafeStart)
+    // If video has progress, start from last watched position
+    if (video.progress && video.progress.watchedDuration > 0 && !video.progress.isCompleted) {
+      return Math.floor(video.progress.watchedDuration)
+    }
+    // Otherwise start from the beginning
+    return 0
   }
 
   // Ensure the player updates when the selected video changes
@@ -88,40 +91,68 @@ const CourseLearningPage: React.FC = () => {
       setLoading(true)
       setError(null)
 
-      console.log('Loading course data for courseId:', courseId)
-      const response = await courseAPI.getCourse(courseId)
-      console.log('Course API response:', response)
+      console.log('=== Loading Course Data ===')
+      console.log('Course ID:', courseId)
+      console.log('User:', user)
       
-      if (response.success) {
-        setCourse(response.data.course)
-        setVideos(response.data.videos)
-        setEnrollment(response.data.enrollment)
-        
-        console.log('Course loaded successfully:', response.data.course.title)
-        console.log('Videos count:', response.data.videos.length)
+      const response = await courseAPI.getCourse(courseId)
+      console.log('=== API Response ===')
+      console.log('Full response:', JSON.stringify(response, null, 2))
+      
+      if (response.success && response.data) {
+        console.log('✅ Success - Setting course data')
+        console.log('Course:', response.data.course?.title)
+        console.log('Videos count:', response.data.videos?.length)
         console.log('Is enrolled:', response.data.isEnrolled)
         
+        setCourse(response.data.course)
+        setVideos(response.data.videos || [])
+        setEnrollment(response.data.enrollment)
+        
         if (!response.data.isEnrolled) {
-          console.log('User not enrolled, redirecting to course detail page')
+          console.log('❌ User not enrolled, redirecting...')
           navigate(`/course/${courseId}`)
           return
         }
 
-        // Initialize video progress
-        const progressMap: { [key: string]: number } = {}
-        response.data.videos.forEach(video => {
-          if (video.progress?.watchedDuration) {
-            progressMap[video._id] = video.progress.watchedDuration / video.duration
+        if (!response.data.videos || response.data.videos.length === 0) {
+          console.log('⚠️ No lesson videos found in course')
+          // Check if there's a preview video we can use instead
+          if (response.data.course.previewVideo) {
+            console.log('✅ Using preview video as fallback:', response.data.course.previewVideo)
+            // Create a temporary video object from the preview
+            const previewVideoObj: Video = {
+              _id: 'preview-' + response.data.course._id,
+              title: 'Course Preview',
+              description: 'Preview video for ' + response.data.course.title,
+              videoUrl: response.data.course.previewVideo,
+              courseId: response.data.course._id,
+              order: 0,
+              duration: 0,
+              isPublished: true,
+              isPreview: true,
+              thumbnail: '',
+              resources: []
+            }
+            setVideos([previewVideoObj])
+          } else {
+            setError('This course has no videos yet. Please add videos to the course first.')
           }
-        })
-        // setVideoProgress(progressMap) // This line is removed as per the edit hint
+        }
       } else {
-        console.error('API returned success: false', response)
+        console.error('❌ API returned success: false or no data')
+        console.error('Response:', response)
         setError(response.message || 'Failed to load course data')
       }
     } catch (error) {
-      console.error('Failed to load course:', error)
-      setError(error instanceof APIError ? error.message : 'Failed to load course')
+      console.error('❌ Error loading course:', error)
+      if (error instanceof APIError) {
+        console.error('API Error details:', error.message, error.statusCode, error.errors)
+        setError(`API Error: ${error.message}`)
+      } else {
+        console.error('Unknown error:', error)
+        setError('Failed to load course. Please check the console for details.')
+      }
     } finally {
       setLoading(false)
     }
@@ -159,15 +190,39 @@ const CourseLearningPage: React.FC = () => {
 
   const getVideoId = (url: string) => {
     try {
+      // Check if it's a local file path (uploaded video)
+      if (url.startsWith('/uploads/') || url.startsWith('http://localhost') || url.startsWith('blob:')) {
+        return null // Not a YouTube video
+      }
+      
       const urlObj = new URL(url)
       if (urlObj.hostname === 'youtu.be') {
         return urlObj.pathname.slice(1)
       }
       return urlObj.searchParams.get('v')
     } catch (e) {
-      console.error('Invalid video URL', url)
+      // If URL parsing fails, it might be a relative path
       return null
     }
+  }
+
+  // Check if current video is a local uploaded file
+  const isLocalVideo = (video: Video) => {
+    if (!video.videoUrl) return false
+    return video.videoUrl.startsWith('/uploads/') || 
+           video.videoUrl.startsWith('http://localhost') ||
+           video.videoUrl.startsWith('blob:') ||
+           !video.videoUrl.includes('youtube.com') && !video.videoUrl.includes('youtu.be')
+  }
+
+  // Get full video URL for local videos
+  const getLocalVideoUrl = (video: Video) => {
+    if (video.videoUrl.startsWith('http')) {
+      return video.videoUrl
+    }
+    // Prepend the backend URL for relative paths
+    const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'
+    return `${baseUrl}${video.videoUrl}`
   }
 
   const formatTime = (seconds: number) => {
@@ -201,17 +256,59 @@ const CourseLearningPage: React.FC = () => {
     )
   }
 
-  if (error || !course || !currentVideo) {
+  if (error || !course) {
     return (
       <div className="min-h-screen bg-zara-black flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-zara-white font-light mb-4">{error || 'Course not found'}</p>
-          <Link
-            to="/dashboard"
-            className="inline-block px-6 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
-          >
-            Back to Dashboard
-          </Link>
+        <div className="text-center max-w-md px-6">
+          <div className="mb-6 text-6xl">😔</div>
+          <h2 className="text-2xl font-light text-zara-white mb-4">
+            {error ? 'Error Loading Course' : 'Course Not Found'}
+          </h2>
+          <p className="text-zara-lightgray font-light mb-6">
+            {error || 'The course you are trying to access does not exist or you do not have permission to view it.'}
+          </p>
+          <div className="space-y-3">
+            <Link
+              to="/courses"
+              className="block px-6 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
+            >
+              Browse Courses
+            </Link>
+            <Link
+              to="/dashboard"
+              className="block px-6 py-3 text-sm font-light tracking-wide uppercase bg-transparent border border-zara-white text-zara-white hover:bg-zara-white hover:text-zara-black transition-colors duration-200"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!currentVideo || videos.length === 0) {
+    return (
+      <div className="min-h-screen bg-zara-black flex items-center justify-center">
+        <div className="text-center max-w-md px-6">
+          <div className="mb-6 text-6xl">📹</div>
+          <h2 className="text-2xl font-light text-zara-white mb-4">No Videos Available</h2>
+          <p className="text-zara-lightgray font-light mb-6">
+            This course doesn't have any lesson videos yet. The instructor needs to add videos before you can start learning.
+          </p>
+          <div className="space-y-3">
+            <Link
+              to={`/course/${courseId}`}
+              className="block px-6 py-3 text-sm font-light tracking-wide uppercase bg-zara-white text-zara-black hover:bg-zara-lightgray transition-colors duration-200"
+            >
+              Back to Course Details
+            </Link>
+            <Link
+              to="/dashboard"
+              className="block px-6 py-3 text-sm font-light tracking-wide uppercase bg-transparent border border-zara-white text-zara-white hover:bg-zara-white hover:text-zara-black transition-colors duration-200"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     )
@@ -220,8 +317,8 @@ const CourseLearningPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-zara-black text-zara-white">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur border-b border-slate-700 shadow-lg">
-        <div className="px-4 sm:px-6 py-4">
+      <header className="z-40 bg-slate-900/90 backdrop-blur border-b border-slate-700 shadow-lg">
+        <div className="px-4 sm:px-6 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <Link
@@ -237,12 +334,12 @@ const CourseLearningPage: React.FC = () => {
                 {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
               <Link to="/dashboard" className="flex-shrink-0 group flex items-center -space-x-1">
-                <img src="/level up.png" alt="LevelUp Logo" className="h-16 sm:h-[70px] lg:h-[110px] w-auto object-contain transition-all duration-300 group-hover:scale-105" />
-                <span className="hidden sm:block text-lg md:text-xl font-righteous font-semibold"><span className="text-black">Level</span><span className="text-orange-500">Up</span></span>
+                <img src="/level up.png" alt="LevelUp Logo" className="h-10 sm:h-12 w-auto object-contain transition-all duration-300 group-hover:scale-105" />
+                <span className="hidden sm:block text-base font-righteous font-semibold"><span className="text-black">Level</span><span className="text-orange-500">Up</span></span>
               </Link>
               <div className="hidden md:block">
-                <h1 className="text-xl font-semibold text-white">{course.title}</h1>
-                <p className="text-sm font-light text-slate-300">
+                <h1 className="text-base font-semibold text-white">{course.title}</h1>
+                <p className="text-xs font-light text-slate-300">
                   {currentVideoIndex + 1} of {videos.length} • {getVideoCompletionPercentage()}% Complete
                 </p>
               </div>
@@ -254,33 +351,54 @@ const CourseLearningPage: React.FC = () => {
             </div>
           </div>
           {/* Accent bar */}
-          <div className="h-1 mt-3 rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500"></div>
+          <div className="h-0.5 mt-2 rounded-full bg-gradient-to-r from-sky-500 via-indigo-500 to-fuchsia-500"></div>
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-80px)]">
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-65px)]">
         {/* Video Player */}
         <div className={`flex-1 flex flex-col transition-all duration-300 overflow-y-auto`}>
           {/* Player Container */}
           <div className="relative bg-black aspect-video">
-            <YouTube
-              key={getVideoId(currentVideo.videoUrl) || currentVideo._id}
-              videoId={getVideoId(currentVideo.videoUrl) || ''}
-              onReady={onPlayerReady}
-              className="w-full h-full"
-              opts={{
-                width: '100%',
-                height: '100%',
-                playerVars: {
-                  autoplay: 1,
-                  controls: 1,
-                  rel: 0,
-                  modestbranding: 1,
-                  // Set start time so initial mount jumps to 60min as well
-                  start: getSkipOffsetSeconds(currentVideo)
-                }
-              }}
-            />
+            {isLocalVideo(currentVideo) ? (
+              /* Local uploaded video player */
+              <video
+                key={currentVideo._id}
+                className="w-full h-full"
+                controls
+                autoPlay
+                src={getLocalVideoUrl(currentVideo)}
+                onError={(e) => {
+                  console.error('Video load error:', e)
+                  setError('Failed to load video. Please check if the video file exists.')
+                }}
+              >
+                <source src={getLocalVideoUrl(currentVideo)} type="video/mp4" />
+                <source src={getLocalVideoUrl(currentVideo)} type="video/webm" />
+                <source src={getLocalVideoUrl(currentVideo)} type="video/ogg" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              /* YouTube video player */
+              <YouTube
+                key={getVideoId(currentVideo.videoUrl) || currentVideo._id}
+                videoId={getVideoId(currentVideo.videoUrl) || ''}
+                onReady={onPlayerReady}
+                className="w-full h-full"
+                opts={{
+                  width: '100%',
+                  height: '100%',
+                  playerVars: {
+                    autoplay: 1,
+                    controls: 1,
+                    rel: 0,
+                    modestbranding: 1,
+                    // Set start time so initial mount jumps to 60min as well
+                    start: getSkipOffsetSeconds(currentVideo)
+                  }
+                }}
+              />
+            )}
           </div>
 
           {/* Video Info */}

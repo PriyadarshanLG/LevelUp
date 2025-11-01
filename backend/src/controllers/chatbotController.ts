@@ -83,7 +83,7 @@ export const chatWithAI = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Get the generative model
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     // Build context from course information
     let contextPrompt = SYSTEM_PROMPT
@@ -250,7 +250,7 @@ export const testAIService = async (req: Request, res: Response): Promise<void> 
       return
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
     const result = await model.generateContent('Hello! Please respond with a simple greeting.')
     const response = result.response.text()
 
@@ -364,7 +364,7 @@ export const generateAIQuiz = async (req: Request, res: Response): Promise<void>
 
     const knowledgeBlock = knowledge.join('\n') || `No existing lessons found. Create a foundational quiz for topic: ${topic}.`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     const QUIZ_SCHEMA = `Return strictly in compact JSON with the following shape (no markdown, no extra text):\n{\n  "topic": string,\n  "difficulty": "easy"|"intermediate"|"advanced",\n  "questions": [\n    {\n      "id": string,\n      "question": string,\n      "options": string[4],\n      "correctOptionIndex": 0|1|2|3,\n      "explanation": string\n    }\n  ]\n}`
 

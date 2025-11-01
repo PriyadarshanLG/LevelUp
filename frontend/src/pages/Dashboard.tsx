@@ -233,19 +233,28 @@ const Dashboard: React.FC = () => {
       <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-gray-700/50 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
-            <div className="flex items-center">
-              <Link to="/" className="flex-shrink-0 group flex items-center transition-transform duration-300 transform hover:scale-105" style={{ gap: '5px' }}>
-                <img 
-                  src="/level up.png" 
-                  alt="LevelUp Logo" 
-                  className="h-16 sm:h-[70px] lg:h-[110px] w-auto object-contain transition-transform duration-300 group-hover:rotate-[20deg]"
-                  style={{ filter: 'drop-shadow(0 0 8px rgba(0, 0, 0, 0.1))' }}
-                />
-                <h1 className="text-xl font-righteous font-semibold">
-                  <span className="text-black">Level</span><span className="text-orange-500">Up</span>
+            {/* Logo - Left Side */}
+            <div className="flex-shrink-0">
+              <Link to="/" className="group flex items-center transition-all duration-500 ease-out hover:scale-105">
+                <div className="relative">
+                  <img 
+                    src="/level up.png" 
+                    alt="LevelUp Logo" 
+                    className="h-24 sm:h-28 w-auto object-contain transition-all duration-500 ease-out group-hover:rotate-6 group-hover:scale-110"
+                    style={{ filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))' }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-indigo-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-righteous font-semibold whitespace-nowrap -ml-6 transition-all duration-300">
+                  <span className="text-black dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-300">Level</span><span className="text-orange-500 group-hover:text-orange-600 group-hover:drop-shadow-lg transition-all duration-300">Up</span>
                 </h1>
               </Link>
-              <nav className="ml-12 hidden md:flex space-x-8">
+            </div>
+
+            {/* Navigation and Buttons - Right Side */}
+            <div className="flex items-center space-x-3 sm:space-x-6">
+              {/* Navigation Links */}
+              <nav className="hidden lg:flex space-x-6">
                 <Link
                   to="/courses"
                   className="group relative px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform hover:-translate-y-0.5"
@@ -261,26 +270,74 @@ const Dashboard: React.FC = () => {
                   <span className="transition-transform duration-200 group-hover:-translate-y-0.5 inline-block">My Learning</span>
                   <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
                 </Link>
-                <Link
-                  to="#learning-paths"
-                  onClick={(e) => handleNavClick(e, 'learning-paths')}
-                  className="group relative px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform hover:-translate-y-0.5"
-                >
-                  <span className="transition-transform duration-200 group-hover:-translate-y-0.5 inline-block">Learning Paths</span>
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
-                </Link>
-                <Link
-                  to="#tasks"
-                  onClick={(e) => handleNavClick(e, 'tasks')}
-                  className="group relative px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-200 transform hover:-translate-y-0.5"
-                  title="Go to Tasks"
-                >
-                  <span className="transition-transform duration-200 group-hover:-translate-y-0.5 inline-block">Tasks</span>
-                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></span>
-                </Link>
               </nav>
-            </div>
-            <div className="flex items-center space-x-2 sm:space-x-6">
+
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-3">
+              {/* Classroom Dropdown */}
+              {(user?.role === 'teacher' || user?.role === 'student') && (
+                <div className="relative group">
+                  <button
+                    className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-800 dark:text-gray-200 hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400 hover:shadow-md transition-all flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Classroom
+                  </button>
+                  
+                  {/* Classroom Dropdown Menu */}
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 transform scale-95 group-hover:scale-100 origin-top-right">
+                    <div className="py-2">
+                      {user?.role === 'teacher' && (
+                        <>
+                          <Link
+                            to="/create-classroom"
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-3 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create Classroom
+                          </Link>
+                          <Link
+                            to="/my-classrooms"
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-3 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            My Classrooms
+                          </Link>
+                        </>
+                      )}
+                      {user?.role === 'student' && (
+                        <>
+                          <Link
+                            to="/join-classroom"
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-3 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                            </svg>
+                            Join Classroom
+                          </Link>
+                          <Link
+                            to="/student-classrooms"
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <svg className="w-4 h-4 mr-3 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            My Classrooms
+                          </Link>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <button
                 onClick={() => setShowQuiz(true)}
                 className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-800 dark:text-gray-200 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-md transition-all"
@@ -357,6 +414,8 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
+              </div>
+              
               <button
                 onClick={() => logout()}
                 className="group relative px-3 sm:px-6 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-600/30 dark:hover:border-indigo-400/30 hover:shadow-lg hover:shadow-indigo-600/10 dark:hover:shadow-indigo-400/10 transition-all duration-200 overflow-hidden"
@@ -1185,7 +1244,7 @@ const Dashboard: React.FC = () => {
       </div> {/* Close main content container */}
       
       {/* Custom CSS Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes float-gentle {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           50% { transform: translateY(-20px) rotate(5deg); }

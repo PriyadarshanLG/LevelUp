@@ -8,7 +8,7 @@ export interface IUser extends Document {
   email: string
   password: string
   avatar?: string
-  role: 'student' | 'instructor' | 'admin'
+  role: 'student' | 'teacher' | 'admin' | 'instructor'
   isEmailVerified: boolean
   // Profile fields
   dateOfBirth?: Date
@@ -74,7 +74,7 @@ const UserSchema: Schema<IUser> = new Schema(
     },
     role: {
       type: String,
-      enum: ['student', 'instructor', 'admin'],
+      enum: ['student', 'teacher', 'admin', 'instructor'],
       default: 'student'
     },
     isEmailVerified: {

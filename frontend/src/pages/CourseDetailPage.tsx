@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
+import type { APIResponse } from '../utils/api'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { 
@@ -7,9 +9,10 @@ import {
 } from 'lucide-react'
 import { courseAPI, certificateAPI, APIError, feedbackAPI } from '../utils/api'
 import type { Course, Video, Enrollment, Certificate, Feedback } from '../utils/api'
+type GenerateCertificateResponse = APIResponse<{ certificate: Certificate }>
 import { useAuth } from '../contexts/AuthContext'
 
-const AccordionItem = ({ title, children }: { title: string, children: React.ReactNode }) => {
+const AccordionItem = ({ title, children }: { title: string, children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -34,7 +37,7 @@ const AccordionItem = ({ title, children }: { title: string, children: React.Rea
 const CourseDetailPage = () => {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const { theme, toggleTheme } = useTheme()
   
   const [course, setCourse] = useState<Course | null>(null)
@@ -191,15 +194,15 @@ const CourseDetailPage = () => {
       console.log('Generating certificate for course:', courseId)
       
       // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise<GenerateCertificateResponse>((_, reject) => {
         setTimeout(() => reject(new Error('Certificate generation timeout')), 30000)
-      )
-      
+      })
+
       const response = await Promise.race([
         certificateAPI.generateCertificate(courseId),
         timeoutPromise
-      ])
-      
+      ]) as GenerateCertificateResponse
+
       if (response.success) {
         setCertificate(response.data.certificate)
         // Auto-download the certificate
@@ -669,9 +672,25 @@ const CourseDetailPage = () => {
             {/* Right side - curriculum */}
             <div className="lg:col-span-1 space-y-8">
               <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 sm:p-8 hover:shadow-md transition-all duration-300">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400 mb-6">
-                  Course Content
-                </h3>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
+                    Course Content
+                  </h3>
+                  
+                  {/* Add Lesson Button - Only for instructors/admin */}
+                  {(user?.role === 'admin' || user?.role === 'instructor') && (
+                    <Link
+                      to={`/course/${courseId}/add-video`}
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 rounded-lg transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-lg"
+                      title="Add new lesson/video to this course"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Lesson
+                    </Link>
+                  )}
+                </div>
                 <div className="space-y-3">
                   {videos.map((video, index) => (
                     <div

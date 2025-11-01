@@ -57,6 +57,8 @@ export interface Video {
   }[]
   transcription?: string
   isPublished: boolean
+  createdAt?: string
+  updatedAt?: string
   progress?: {
     isCompleted: boolean
     watchedDuration: number
@@ -107,6 +109,7 @@ export interface QuizQuestion {
 
 export interface Quiz {
   _id: string
+  courseId: string
   title: string
   description: string
   instructions: string[]
@@ -221,15 +224,20 @@ const apiRequest = async <T>(
 ): Promise<T> => {
   const url = `${API_BASE_URL}${endpoint}`
   
-  // Default headers
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  // Default headers - don't set Content-Type if body is FormData
+  const headers: Record<string, string> = {}
+  
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
   }
 
   // Merge with existing headers if any
   if (options.headers) {
     Object.entries(options.headers as Record<string, string>).forEach(([key, value]) => {
-      headers[key] = value
+      if (value !== undefined && value !== null) {
+        headers[key] = value
+      }
     })
   }
 
@@ -311,6 +319,7 @@ export const authAPI = {
     name: string
     email: string
     password: string
+    role?: 'student' | 'teacher'
   }): Promise<AuthResponse> => {
     return apiRequest<AuthResponse>('/auth/register', {
       method: 'POST',
@@ -434,10 +443,26 @@ export const courseAPI = {
     }>>(`/courses/${courseId}`)
   },
 
-  createCourse: async (courseData: Omit<Course, '_id' | 'instructor' | 'isPublished' | 'enrollmentCount' | 'rating' | 'createdAt' | 'updatedAt' | 'duration' | 'importantTopics' | 'timeManagement' | 'tipsAndTricks' | 'weeklyAssignments'>) => {
+  createCourse: async (courseData: FormData | Omit<Course, '_id' | 'instructor' | 'isPublished' | 'enrollmentCount' | 'rating' | 'createdAt' | 'updatedAt' | 'duration' | 'importantTopics' | 'timeManagement' | 'tipsAndTricks' | 'weeklyAssignments'>) => {
+    // Handle FormData differently (for file uploads)
+    if (courseData instanceof FormData) {
+      return apiRequest<APIResponse<{ course: Course }>>('/courses', {
+        method: 'POST',
+        body: courseData,
+        headers: {} // Let browser set Content-Type with boundary for FormData
+      })
+    }
+    // Handle regular JSON data
     return apiRequest<APIResponse<{ course: Course }>>('/courses', {
         method: 'POST',
         body: JSON.stringify(courseData)
+    })
+  },
+
+  // Delete course (instructor/admin only)
+  deleteCourse: async (courseId: string) => {
+    return apiRequest<APIResponse<any>>(`/courses/${courseId}`, {
+      method: 'DELETE'
     })
   },
 
@@ -507,6 +532,57 @@ export const videoAPI = {
     }>>(`/videos/${videoId}/progress`, {
       method: 'POST',
       body: JSON.stringify({ watchedDuration, isCompleted })
+    })
+  },
+
+  // Create new video (instructor/admin only) - supports both FormData and JSON
+  createVideo: async (videoData: FormData | {
+    courseId: string
+    title: string
+    description: string
+    videoUrl: string
+    duration: number
+    order: number
+    isPreview?: boolean
+    thumbnail?: string
+    startTime?: number
+  }) => {
+    // Handle FormData differently (for file uploads)
+    if (videoData instanceof FormData) {
+      return apiRequest<APIResponse<{
+        video: Video
+      }>>('/videos', {
+        method: 'POST',
+        body: videoData,
+        headers: {} // Let browser set Content-Type with boundary for FormData
+      })
+    }
+    // Handle regular JSON data
+    return apiRequest<APIResponse<{
+      video: Video
+    }>>('/videos', {
+      method: 'POST',
+      body: JSON.stringify(videoData)
+    })
+  },
+
+  // Update video (instructor/admin only)
+  updateVideo: async (videoId: string, videoData: Partial<{
+    title: string
+    description: string
+    videoUrl: string
+    duration: number
+    order: number
+    isPreview: boolean
+    thumbnail: string
+    startTime: number
+    isPublished: boolean
+  }>) => {
+    return apiRequest<APIResponse<{
+      video: Video
+    }>>(`/videos/${videoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(videoData)
     })
   }
 }
@@ -684,6 +760,81 @@ export const certificateAPI = {
   }
 }
 
+// Classroom interface
+export interface Classroom {
+  _id: string
+  name: string
+  description: string
+  pin: string
+  teacher: {
+    _id: string
+    name: string
+    email: string
+  }
+  students: {
+    _id: string
+    name: string
+    email: string
+  }[]
+  createdAt: string
+  updatedAt: string
+}
+
+// Classroom API functions
+export const classroomAPI = {
+  // Teacher: Create a new classroom
+  createClassroom: async (name: string, description?: string) => {
+    return apiRequest<APIResponse<{
+      classroom: Classroom
+    }>>('/classrooms/create', {
+      method: 'POST',
+      body: JSON.stringify({ name, description })
+    })
+  },
+
+  // Teacher: Get all classrooms created by teacher
+  getTeacherClassrooms: async () => {
+    return apiRequest<APIResponse<{
+      classrooms: Classroom[]
+      count: number
+    }>>('/classrooms/teacher')
+  },
+
+  // Teacher: Delete a classroom
+  deleteClassroom: async (classroomId: string) => {
+    return apiRequest<APIResponse<{
+      message: string
+    }>>(`/classrooms/${classroomId}`, {
+      method: 'DELETE'
+    })
+  },
+
+  // Student: Join a classroom with PIN
+  joinClassroom: async (pin: string) => {
+    return apiRequest<APIResponse<{
+      classroom: Classroom
+    }>>('/classrooms/join', {
+      method: 'POST',
+      body: JSON.stringify({ pin })
+    })
+  },
+
+  // Student: Get all classrooms joined by student
+  getStudentClassrooms: async () => {
+    return apiRequest<APIResponse<{
+      classrooms: Classroom[]
+      count: number
+    }>>('/classrooms/student')
+  },
+
+  // Get classroom by ID (teacher or enrolled student)
+  getClassroom: async (classroomId: string) => {
+    return apiRequest<APIResponse<{
+      classroom: Classroom
+    }>>(`/classrooms/${classroomId}`)
+  }
+}
+
 // Token management utilities
 export const tokenUtils = {
   // Save token to localStorage
@@ -706,3 +857,48 @@ export const tokenUtils = {
     return !!localStorage.getItem('authToken')
   }
 }
+
+// Default axios-like API instance for direct requests
+const api = {
+  get: <T = any>(endpoint: string, options?: RequestInit) => {
+    return apiRequest<T>(endpoint, { ...options, method: 'GET' })
+  },
+  post: <T = any>(endpoint: string, body?: any, options?: RequestInit) => {
+    const isFormData = body instanceof FormData
+    const mergedOptions: RequestInit = {
+      ...options,
+      method: 'POST',
+      body: isFormData ? body : JSON.stringify(body),
+    }
+    // Don't set headers for FormData - let the browser handle it
+    if (!isFormData && options?.headers) {
+      mergedOptions.headers = options.headers
+    }
+    return apiRequest<T>(endpoint, mergedOptions)
+  },
+  put: <T = any>(endpoint: string, body?: any, options?: RequestInit) => {
+    const isFormData = body instanceof FormData
+    const mergedOptions: RequestInit = {
+      ...options,
+      method: 'PUT',
+      body: isFormData ? body : JSON.stringify(body),
+    }
+    // Don't set headers for FormData - let the browser handle it
+    if (!isFormData && options?.headers) {
+      mergedOptions.headers = options.headers
+    }
+    return apiRequest<T>(endpoint, mergedOptions)
+  },
+  delete: <T = any>(endpoint: string, options?: RequestInit) => {
+    return apiRequest<T>(endpoint, { ...options, method: 'DELETE' })
+  },
+  patch: <T = any>(endpoint: string, body?: any, options?: RequestInit) => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    })
+  }
+}
+
+export default api

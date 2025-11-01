@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { CheckCircle2, AlertCircle, Play, RotateCcw, Trophy } from 'lucide-react'
+import { Trophy } from 'lucide-react'
 import { quizAPI, APIError } from '../utils/api'
 import type { Quiz } from '../utils/api'
 
@@ -32,58 +32,6 @@ const QuizList: React.FC<QuizListProps> = ({ courseId }) => {
       setError(error instanceof APIError ? error.message : 'Failed to load quizzes')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const formatTime = (minutes: number) => {
-    if (minutes === 0) return 'Unlimited'
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    if (hours > 0) {
-      return `${hours}h ${mins}m`
-    }
-    return `${mins}m`
-  }
-
-  const getQuizStatusIcon = (quiz: Quiz) => {
-    const userStats = quiz.userStats
-    
-    if (!userStats) return <Play size={20} className="text-zara-lightgray" />
-    
-    if (userStats.passed) {
-      return <CheckCircle2 size={20} className="text-green-500" />
-    } else if (userStats.attempts > 0) {
-      return <RotateCcw size={20} className="text-yellow-500" />
-    } else {
-      return <Play size={20} className="text-zara-lightgray" />
-    }
-  }
-
-  const getQuizStatusText = (quiz: Quiz) => {
-    const userStats = quiz.userStats
-    
-    if (!userStats) return 'Not started'
-    
-    if (userStats.passed) {
-      return `Passed (${userStats.bestPercentage}%)`
-    } else if (userStats.attempts > 0) {
-      return `${userStats.attempts} attempt${userStats.attempts > 1 ? 's' : ''} (${userStats.bestPercentage}%)`
-    } else {
-      return 'Not started'
-    }
-  }
-
-  const getQuizStatusColor = (quiz: Quiz) => {
-    const userStats = quiz.userStats
-    
-    if (!userStats) return 'text-zara-lightgray'
-    
-    if (userStats.passed) {
-      return 'text-green-500'
-    } else if (userStats.attempts > 0) {
-      return 'text-yellow-500'
-    } else {
-      return 'text-zara-lightgray'
     }
   }
 
